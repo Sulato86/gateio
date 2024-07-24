@@ -4,15 +4,14 @@ import asyncio
 import pandas as pd
 import logging
 import qasync
-from control.pandas import PandasModel
-from control.workers import QThreadWorker
+from control.pandas import PandasModel  # Pastikan impor dari pandas_model.py
+from control.workers import QThreadWorker, BalanceWorker  # Pastikan import BalanceWorker
 from dotenv import load_dotenv
+from PyQt5 import QtCore, QtWidgets  # Tambahkan QtCore untuk Geometry
 from PyQt5.QtWidgets import QApplication, QMainWindow, QHeaderView
 from PyQt5.QtCore import QSortFilterProxyModel, QTimer
-from aiohttp import ClientSession
 from api.api_gateio import GateioAPI
 from ui.ui_main_window import Ui_MainWindow
-from datetime import datetime
 
 # Memuat variabel lingkungan dari file .env
 load_dotenv()
@@ -43,34 +42,49 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         super().__init__()
         self.setupUi(self)
 
-        # Inisialisasi API Gate.io
-        self.api = GateioAPI()
+        # Inisialisasi API Gate.io dengan API key dan secret dari environment variables
+        self.api_key = os.getenv('API_KEY')
+        self.api_secret = os.getenv('SECRET_KEY')
+        self.api = GateioAPI(self.api_key, self.api_secret)
         logger.debug("GateioAPI initialized")
+
+        # Inisialisasi daftar pasangan
+        self.pairs = ["BTC_USDT", "ETH_USDT", "LTC_USDT", "XRP_USDT", "EOS_USDT", "BCH_USDT", "TRX_USDT", "ETC_USDT"]
         
         # Inisialisasi DataFrame dan model untuk tableView_marketdata
-        self.data = pd.DataFrame(columns=["TIME", "PAIR", "24H %", "PRICE", "VOLUME"])
-        self.model = PandasModel(self.data)
-        self.proxy = QSortFilterProxyModel()
-        self.proxy.setSourceModel(self.model)
-        self.tableView_marketdata.setModel(self.proxy)
+        self.data_market = pd.DataFrame(columns=["TIME", "PAIR", "24H %", "PRICE", "VOLUME"])
+        self.model_market = PandasModel(self.data_market)
+        self.proxy_market = QSortFilterProxyModel()
+        self.proxy_market.setSourceModel(self.model_market)
+        self.tableView_marketdata.setModel(self.proxy_market)
         self.tableView_marketdata.setSortingEnabled(True)
         self.tableView_marketdata.horizontalHeader().setSortIndicatorShown(True)
         self.tableView_marketdata.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-        self.tableView_marketdata.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
+        self.tableView_marketdata.verticalHeader().setVisible(False)
+        logger.debug("TableView for market data initialized")
+
+        # Inisialisasi DataFrame dan model untuk tableView_accountdata
+        self.data_account = pd.DataFrame(columns=["CURRENCY", "AVAILABLE"])
+        self.model_account = PandasModel(self.data_account)
+        self.proxy_account = QSortFilterProxyModel()
+        self.proxy_account.setSourceModel(self.model_account)
+        self.tableView_accountdata.setModel(self.proxy_account)
+        self.tableView_accountdata.setSortingEnabled(True)
+        self.tableView_accountdata.horizontalHeader().setSortIndicatorShown(True)
         self.tableView_accountdata.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-        self.tableView_accountdata.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
-        self.lineEdit_addpair.setPlaceholderText("e.g. BTC_USDT")
-        logger.debug("TableView configured")
+        self.tableView_accountdata.verticalHeader().setVisible(False)
+        logger.debug("TableView for account data initialized")
 
-        # Inisialisasi pasangan default
-        self.pairs = ['BTC_USDT', 'ETH_USDT']
-        logger.debug(f"Pairs set: {self.pairs}")
+        # Inisialisasi saldo akun
+        self.balance_worker = BalanceWorker(self.api_key, self.api_secret)
+        self.balance_worker.balance_signal.connect(self.update_balance)
+        self.balance_worker.start()
 
-        # Timer untuk pembaruan data
-        self.timer = QTimer(self)
+        # Inisialisasi timer untuk memperbarui data pasar
+        self.timer = QTimer()
         self.timer.timeout.connect(self.schedule_update)
-        self.timer.start(15000)
-        logger.debug("Timer started for data updates every 15 seconds")
+        self.timer.start(10000)  # Update setiap 10 detik
+        logger.debug("Update timer initialized")
 
         # Hubungkan sinyal returnPressed dari lineEdit_addpair ke metode add_pair
         self.lineEdit_addpair.returnPressed.connect(self.add_pair)
@@ -83,11 +97,18 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.worker.stop()
             self.worker.quit()
             self.worker.wait()
+        if self.balance_worker is not None:
+            self.balance_worker.quit()
+            self.balance_worker.wait()
         event.accept()
 
-    def update_model(self, data_frame):
-        logger.debug("Updating model with new data")
-        self.model.update_data(data_frame)
+    def update_model_market(self, data_frame):
+        logger.debug("Updating market model with new data")
+        self.model_market.update_data(data_frame)
+
+    def update_model_account(self, data_frame):
+        logger.debug("Updating account model with new data")
+        self.model_account.update_data(data_frame)
 
     def schedule_update(self):
         logger.debug("Scheduling data update")
@@ -97,9 +118,18 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.worker.quit()
             self.worker.wait()
         logger.debug("Starting new worker")
-        self.worker = QThreadWorker(self.pairs, self.api)
-        self.worker.result_ready.connect(self.update_model)
+        self.worker = QThreadWorker(self.pairs, self.api_key, self.api_secret)
+        self.worker.result_ready.connect(self.update_model_market)
         self.worker.start()
+
+    def update_balance(self, balance):
+        if 'error' in balance:
+            logger.error(f"Error: {balance['message']}")
+        else:
+            data = [{"CURRENCY": currency, "AVAILABLE": balance} for currency, balance in balance.items()]
+            df = pd.DataFrame(data)
+            self.update_model_account(df)
+            logger.debug("Account balance updated")
 
     def add_pair(self):
         pair = self.lineEdit_addpair.text().strip().upper()
@@ -108,9 +138,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             # Tambahkan pasangan baru ke daftar pasangan
             self.pairs.append(pair)
             # Perbarui DataFrame dengan pasangan baru
-            new_row = pd.DataFrame([[pd.Timestamp.now(), pair, None, None, None]], columns=self.data.columns)
-            self.data = pd.concat([self.data, new_row], ignore_index=True)
-            self.update_model(self.data)  # Perbarui model dengan data terbaru
+            new_row = pd.DataFrame([[pd.Timestamp.now(), pair, None, None, None]], columns=self.data_market.columns)
+            self.data_market = pd.concat([self.data_market, new_row], ignore_index=True)
+            self.update_model_market(self.data_market)  # Perbarui model dengan data terbaru
             self.lineEdit_addpair.clear()
             logger.debug(f"Pair added: {pair}")
 
