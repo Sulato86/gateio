@@ -1,124 +1,108 @@
 import os
 import asyncio
 import logging
+from aiohttp import ClientSession, ClientError
 from dotenv import load_dotenv
-import requests
-from aiohttp import ClientSession
-from tenacity import retry, wait_fixed, stop_after_attempt
+from gate_api import SpotApi, Configuration, ApiClient
+from gate_api.exceptions import ApiException
+import time
 
 # Memuat variabel lingkungan dari file .env
 load_dotenv()
 
+# Konfigurasi logging
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+
+# Handler untuk logging ke file
+file_handler = logging.FileHandler('api_gateio.log')
+file_handler.setLevel(logging.DEBUG)
+
+# Handler untuk logging ke console
+console_handler = logging.StreamHandler()
+console_handler.setLevel(logging.DEBUG)
+
+# Format logging
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+file_handler.setFormatter(formatter)
+console_handler.setFormatter(formatter)
+
+# Menambahkan handler ke logger
+logger.addHandler(file_handler)
+logger.addHandler(console_handler)
+
 class GateioAPI:
-    def __init__(self):
+    def __init__(self, rate_limit=10):
         self.api_key = os.getenv('API_KEY')
         self.secret_key = os.getenv('SECRET_KEY')
-        self.base_url = 'https://api.gateio.ws/api/v4'
-        self.headers = {
-            'Content-Type': 'application/json'
-        }
-        self.auth_headers = {
-            'Content-Type': 'application/json',
-            'KEY': self.api_key,
-            'SIGN': self.secret_key
-        }
+        self.configuration = Configuration(
+            key=self.api_key,
+            secret=self.secret_key
+        )
+        self.api_client = ApiClient(self.configuration)
+        self.spot_api = SpotApi(self.api_client)
+        self.rate_limit = rate_limit  # Max requests per second
+        logger.debug("GateioAPI instance created")
 
-    @retry(wait=wait_fixed(2), stop=stop_after_attempt(5))
     def get_all_symbols(self) -> list:
-        url = f"{self.base_url}/spot/currency_pairs"
         try:
-            response = requests.get(url, headers=self.headers)
-            response.raise_for_status()
-            markets = response.json()
-            return [market['id'] for market in markets]
-        except requests.exceptions.RequestException as e:
-            logging.error(f"Error getting all symbols: {e}")
+            markets = self.spot_api.list_currency_pairs()
+            return [market.id for market in markets]
+        except ApiException as e:
+            logger.error(f"Error getting all symbols: {e}")
             return []
 
-    @retry(wait=wait_fixed(2), stop=stop_after_attempt(5))
     async def async_get_ticker_info(self, symbol: str, session: ClientSession) -> dict:
-        url = f"{self.base_url}/spot/tickers?currency_pair={symbol}"
         try:
-            async with session.get(url, headers=self.headers) as response:
-                response.raise_for_status()
-                ticker = await response.json()
-                if ticker:
-                    ticker = ticker[0]
-                    return {
-                        'last_price': ticker['last'],
-                        '24h_change': ticker['change_percentage'],
-                        'volume': ticker['base_volume']
-                    }
-                return None
+            async with session.get(f'https://api.gateio.ws/api/v4/spot/tickers?currency_pair={symbol}') as response:
+                if response.status == 200:
+                    ticker = await response.json()
+                    return ticker[0]
+                else:
+                    logger.error(f"Error: Received status code {response.status} for symbol {symbol}")
+                    return {}
+        except asyncio.TimeoutError:
+            logger.error(f"Request timed out for {symbol}")
+        except ClientError as e:
+            logger.error(f"Client error: {e}")
         except Exception as e:
-            logging.error(f"Error getting ticker info for {symbol}: {e}")
-            return None
-
-    @retry(wait=wait_fixed(2), stop=stop_after_attempt(5))
-    async def async_get_order_book(self, symbol: str, session: ClientSession, limit: int = 10) -> dict:
-        url = f"{self.base_url}/spot/order_book?currency_pair={symbol}&limit={limit}"
-        try:
-            async with session.get(url, headers=self.headers) as response:
-                response.raise_for_status()
-                order_book = await response.json()
-                return order_book
-        except Exception as e:
-            logging.error(f"Error getting order book for {symbol}: {e}")
-            return None
+            logger.error(f"An error occurred: {e}")
+        return {}
 
     def get_account_balance(self) -> dict:
-        url = f"{self.base_url}/spot/accounts"
         try:
-            response = requests.get(url, headers=self.auth_headers)
-            response.raise_for_status()
-            balance = response.json()
-            return balance
-        except requests.exceptions.RequestException as e:
-            logging.error(f"Error getting account balance: {e}")
-            return None
+            accounts = self.spot_api.list_spot_accounts()
+            return {account.currency: account.available for account in accounts}
+        except ApiException as e:
+            logger.error(f"Error getting account balance: {e}")
+            return {}
 
-    def get_open_orders(self, symbols: list) -> dict:
-        all_open_orders = {}
-        for symbol in symbols:
-            url = f"{self.base_url}/spot/open_orders?currency_pair={symbol}"
-            try:
-                response = requests.get(url, headers=self.auth_headers)
-                response.raise_for_status()
-                open_orders = response.json()
-                all_open_orders[symbol] = open_orders
-            except requests.exceptions.RequestException as e:
-                logging.error(f"Error getting open orders for {symbol}: {e}")
-                pass
-        return all_open_orders
+    def get_open_orders(self, symbol: str) -> list:
+        try:
+            open_orders = self.spot_api.list_orders(currency_pair=symbol, status='open')
+            return [order.to_dict() for order in open_orders]
+        except ApiException as e:
+            logger.error(f"Error getting open orders for {symbol}: {e}")
+            return []
 
-    def get_closed_orders(self, symbols: list) -> dict:
-        all_closed_orders = {}
-        for symbol in symbols:
-            url = f"{self.base_url}/spot/closed_orders?currency_pair={symbol}"
-            try:
-                response = requests.get(url, headers=self.auth_headers)
-                response.raise_for_status()
-                closed_orders = response.json()
-                all_closed_orders[symbol] = closed_orders
-            except requests.exceptions.RequestException as e:
-                logging.error(f"Error getting closed orders for {symbol}: {e}")
-                pass
-        return all_closed_orders
+    def get_closed_orders(self, symbol: str) -> list:
+        try:
+            closed_orders = self.spot_api.list_orders(currency_pair=symbol, status='finished')
+            return [order.to_dict() for order in closed_orders]
+        except ApiException as e:
+            logger.error(f"Error getting closed orders for {symbol}: {e}")
+            return []
 
     def get_server_time(self) -> dict:
-        url = f"{self.base_url}/spot/time"
         try:
-            response = requests.get(url, headers=self.headers)
-            response.raise_for_status()
-            server_time = response.json()
-            return server_time
-        except requests.exceptions.RequestException as e:
-            logging.error(f"Error getting server time: {e}")
-            return None
+            server_time = self.spot_api.get_system_time()
+            return server_time.to_dict()
+        except ApiException as e:
+            logger.error(f"Error getting server time: {e}")
+            return {}
 
     def create_order(self, symbol: str, side: str, amount: float, price: float) -> dict:
-        url = f"{self.base_url}/spot/orders"
-        data = {
+        order = {
             "currency_pair": symbol,
             "type": "limit",
             "side": side,
@@ -126,32 +110,69 @@ class GateioAPI:
             "price": str(price)
         }
         try:
-            response = requests.post(url, headers=self.auth_headers, json=data)
-            response.raise_for_status()
-            order = response.json()
-            return order
-        except requests.exceptions.RequestException as e:
-            logging.error(f"Error creating order for {symbol}: {e}")
-            return None
+            order_result = self.spot_api.create_order(order)
+            return order_result.to_dict()
+        except ApiException as e:
+            logger.error(f"Error creating order for {symbol}: {e}")
+            return {}
 
     def cancel_order(self, symbol: str, order_id: str) -> dict:
-        url = f"{self.base_url}/spot/orders/{order_id}"
         try:
-            response = requests.delete(url, headers=self.auth_headers)
-            response.raise_for_status()
-            cancel_result = response.json()
-            return cancel_result
-        except requests.exceptions.RequestException as e:
-            logging.error(f"Error canceling order {order_id} for {symbol}: {e}")
-            return None
+            cancel_result = self.spot_api.cancel_order(order_id, symbol)
+            return cancel_result.to_dict()
+        except ApiException as e:
+            logger.error(f"Error canceling order {order_id} for {symbol}: {e}")
+            return {}
 
     def get_trade_history(self, symbol: str) -> list:
-        url = f"{self.base_url}/spot/my_trades?currency_pair={symbol}"
         try:
-            response = requests.get(url, headers=self.auth_headers)
-            response.raise_for_status()
-            trade_history = response.json()
-            return trade_history
-        except requests.exceptions.RequestException as e:
-            logging.error(f"Error getting trade history for {symbol}: {e}")
+            trade_history = self.spot_api.list_my_trades(currency_pair=symbol)
+            return [trade.to_dict() for trade in trade_history]
+        except ApiException as e:
+            logger.error(f"Error getting trade history for {symbol}: {e}")
             return []
+
+    async def rate_limited_fetch(self, url, symbol, session):
+        while True:
+            start_time = time.time()
+            data = await self.async_get_ticker_info(symbol, session)
+            end_time = time.time()
+            elapsed_time = end_time - start_time
+            if elapsed_time < 1 / self.rate_limit:
+                await asyncio.sleep(1 / self.rate_limit - elapsed_time)
+            return data
+
+    async def fetch_tickers_for_symbols(self, symbols: list) -> dict:
+        async with ClientSession() as session:
+            tasks = [self.rate_limited_fetch(f'https://api.gateio.ws/api/v4/spot/tickers?currency_pair={symbol}', symbol, session) for symbol in symbols]
+            return await asyncio.gather(*tasks)
+
+"""# Contoh penggunaan
+if __name__ == "__main__":
+    gateio_api = GateioAPI()
+    symbols = gateio_api.get_all_symbols()
+    print(symbols)
+
+    ticker_info = asyncio.run(gateio_api.async_get_ticker_info('BTC_USDT', ClientSession()))
+    print(ticker_info)
+
+    balance = gateio_api.get_account_balance()
+    print(balance)
+
+    open_orders = gateio_api.get_open_orders('BTC_USDT')
+    print(open_orders)
+
+    closed_orders = gateio_api.get_closed_orders('BTC_USDT')
+    print(closed_orders)
+
+    server_time = gateio_api.get_server_time()
+    print(server_time)
+
+    order = gateio_api.create_order('BTC_USDT', 'buy', 0.001, 30000)
+    print(order)
+
+    cancel_result = gateio_api.cancel_order('BTC_USDT', 'order_id_here')
+    print(cancel_result)
+
+    trade_history = gateio_api.get_trade_history('BTC_USDT')
+    print(trade_history)"""
