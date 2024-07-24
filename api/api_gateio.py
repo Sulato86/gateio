@@ -32,9 +32,9 @@ logger.addHandler(file_handler)
 logger.addHandler(console_handler)
 
 class GateioAPI:
-    def __init__(self, api_key=None, secret_key=None, rate_limit=10):
-        self.api_key = api_key or os.getenv('API_KEY')
-        self.secret_key = secret_key or os.getenv('SECRET_KEY')
+    def __init__(self, rate_limit=10):
+        self.api_key = os.getenv('API_KEY')
+        self.secret_key = os.getenv('SECRET_KEY')
         self.configuration = Configuration(
             key=self.api_key,
             secret=self.secret_key
@@ -42,7 +42,7 @@ class GateioAPI:
         self.api_client = ApiClient(self.configuration)
         self.spot_api = SpotApi(self.api_client)
         self.rate_limit = rate_limit  # Max requests per second
-        logger.debug("GateioAPI instance created with rate_limit: %d", rate_limit)
+        logger.debug("GateioAPI instance created")
 
     def get_all_symbols(self) -> list:
         try:
@@ -146,3 +146,33 @@ class GateioAPI:
         async with ClientSession() as session:
             tasks = [self.rate_limited_fetch(f'https://api.gateio.ws/api/v4/spot/tickers?currency_pair={symbol}', symbol, session) for symbol in symbols]
             return await asyncio.gather(*tasks)
+
+"""# Contoh penggunaan
+if __name__ == "__main__":
+    gateio_api = GateioAPI()
+    symbols = gateio_api.get_all_symbols()
+    print(symbols)
+
+    ticker_info = asyncio.run(gateio_api.async_get_ticker_info('BTC_USDT', ClientSession()))
+    print(ticker_info)
+
+    balance = gateio_api.get_account_balance()
+    print(balance)
+
+    open_orders = gateio_api.get_open_orders('BTC_USDT')
+    print(open_orders)
+
+    closed_orders = gateio_api.get_closed_orders('BTC_USDT')
+    print(closed_orders)
+
+    server_time = gateio_api.get_server_time()
+    print(server_time)
+
+    order = gateio_api.create_order('BTC_USDT', 'buy', 0.001, 30000)
+    print(order)
+
+    cancel_result = gateio_api.cancel_order('BTC_USDT', 'order_id_here')
+    print(cancel_result)
+
+    trade_history = gateio_api.get_trade_history('BTC_USDT')
+    print(trade_history)"""
