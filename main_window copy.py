@@ -29,7 +29,7 @@ console_handler = logging.StreamHandler()
 console_handler.setLevel(logging.DEBUG)
 
 # Format logging
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(level)s - %(message)s')
 file_handler.setFormatter(formatter)
 console_handler.setFormatter(formatter)
 
@@ -42,10 +42,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         super().__init__()
         self.setupUi(self)
 
-        # Inisialisasi API Gate.io dengan API key dan secret dari environment variables
-        self.api_key = os.getenv('API_KEY')
-        self.api_secret = os.getenv('SECRET_KEY')
-        self.api = GateioAPI(self.api_key, self.api_secret)
+        # Inisialisasi API Gate.io
+        self.api = GateioAPI()
         logger.debug("GateioAPI initialized")
 
         # Inisialisasi daftar pasangan
@@ -76,7 +74,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         logger.debug("TableView for account data initialized")
 
         # Inisialisasi saldo akun
-        self.balance_worker = BalanceWorker(self.api_key, self.api_secret)
+        self.balance_worker = BalanceWorker()
         self.balance_worker.balance_signal.connect(self.update_balance)
         self.balance_worker.start()
 
@@ -118,7 +116,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.worker.quit()
             self.worker.wait()
         logger.debug("Starting new worker")
-        self.worker = QThreadWorker(self.pairs, self.api_key, self.api_secret)
+        self.worker = QThreadWorker(self.pairs, self.api)
         self.worker.result_ready.connect(self.update_model_market)
         self.worker.start()
 

@@ -46,7 +46,7 @@
      </font>
     </property>
    </widget>
-   <widget class="QPushButton" name="pushButton">
+   <widget class="QPushButton" name="pushButton_import">
     <property name="geometry">
      <rect>
       <x>140</x>
@@ -59,7 +59,7 @@
      <string>IMPORT CSV</string>
     </property>
    </widget>
-   <widget class="QPushButton" name="pushButton_2">
+   <widget class="QPushButton" name="pushButton_export">
     <property name="geometry">
      <rect>
       <x>10</x>

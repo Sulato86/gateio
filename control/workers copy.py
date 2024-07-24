@@ -4,7 +4,7 @@ import logging
 from aiohttp import ClientSession
 from datetime import datetime
 from PyQt5.QtCore import QThread, pyqtSignal
-from api.api_gateio import GateioAPI  # Memastikan import kelas GateioAPI benar
+from api.api_gateio import GateioAPI  # Pastikan import kelas GateioAPI
 
 # Konfigurasi logging
 logger = logging.getLogger(__name__)
@@ -30,10 +30,10 @@ logger.addHandler(console_handler)
 class QThreadWorker(QThread):
     result_ready = pyqtSignal(pd.DataFrame)
 
-    def __init__(self, pairs, api_key, api_secret):
+    def __init__(self, pairs, api):
         super(QThreadWorker, self).__init__()
         self.pairs = pairs
-        self.api = GateioAPI(api_key, api_secret)
+        self.api = api
         self._is_running = True
         logger.debug("QThreadWorker initialized with pairs: %s", pairs)
 
@@ -83,14 +83,7 @@ class QThreadWorker(QThread):
 class BalanceWorker(QThread):
     balance_signal = pyqtSignal(dict)
 
-    def __init__(self, api_key, api_secret):
-        super(BalanceWorker, self).__init__()
-        self.api = GateioAPI(api_key, api_secret)
-
     def run(self):
-        try:
-            balance = self.api.get_account_balance()
-            self.balance_signal.emit(balance)
-            logger.debug("Balance fetched and signal emitted")
-        except Exception as e:
-            logger.error(f"Error fetching balance: {e}")
+        api = GateioAPI()
+        balance = api.get_account_balance()
+        self.balance_signal.emit(balance)
