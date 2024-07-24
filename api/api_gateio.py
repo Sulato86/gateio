@@ -60,8 +60,7 @@ class GateioAPI:
         except Exception as e:
             return None
 
-    @retry(wait=wait_fixed(2), stop=stop_after_attempt(5))
-    def check_balance(self) -> dict:
+    def get_account_balance(self) -> dict:
         url = f"{self.base_url}/spot/accounts"
         try:
             response = requests.get(url, headers=self.auth_headers)
@@ -106,6 +105,43 @@ class GateioAPI:
             return server_time
         except requests.exceptions.RequestException as e:
             return None
+
+    def create_order(self, symbol: str, side: str, amount: float, price: float) -> dict:
+        url = f"{self.base_url}/spot/orders"
+        data = {
+            "currency_pair": symbol,
+            "type": "limit",
+            "side": side,
+            "amount": str(amount),
+            "price": str(price)
+        }
+        try:
+            response = requests.post(url, headers=self.auth_headers, json=data)
+            response.raise_for_status()
+            order = response.json()
+            return order
+        except requests.exceptions.RequestException as e:
+            return None
+
+    def cancel_order(self, symbol: str, order_id: str) -> dict:
+        url = f"{self.base_url}/spot/orders/{order_id}"
+        try:
+            response = requests.delete(url, headers=self.auth_headers)
+            response.raise_for_status()
+            cancel_result = response.json()
+            return cancel_result
+        except requests.exceptions.RequestException as e:
+            return None
+
+    def get_trade_history(self, symbol: str) -> list:
+        url = f"{self.base_url}/spot/my_trades?currency_pair={symbol}"
+        try:
+            response = requests.get(url, headers=self.auth_headers)
+            response.raise_for_status()
+            trade_history = response.json()
+            return trade_history
+        except requests.exceptions.RequestException as e:
+            return []
 
 async def fetch_data_every_15_seconds(api, symbol):
     async with ClientSession() as session:
