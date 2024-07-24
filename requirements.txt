@@ -1,0 +1,14 @@
+PyQt5
+python-dotenv
+requests
+pandas
+numpy
+gate-api
+pyinstaller
+pytz
+aiohttp
+ccxt
+qasync
+TA-Lib
+asyncio
+tenacity
