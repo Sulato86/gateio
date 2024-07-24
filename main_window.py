@@ -2,12 +2,11 @@ import sys
 import os
 import asyncio
 import pandas as pd
-import qasync
 import logging
+import qasync
 from dotenv import load_dotenv
 from PyQt5.QtWidgets import QApplication, QMainWindow, QHeaderView
 from PyQt5.QtCore import QAbstractTableModel, Qt, QSortFilterProxyModel, QTimer, QThread, pyqtSignal
-from PyQt5.QtGui import QFont
 from aiohttp import ClientSession
 from api.api_gateio import GateioAPI
 from ui.ui_main_window import Ui_MainWindow
@@ -44,6 +43,8 @@ class QThreadWorker(QThread):
             rows = []
             async with ClientSession() as session:
                 for pair in self.pairs:
+                    if not self._is_running:
+                        break
                     data = await self.api.async_get_ticker_info(pair, session)
                     if data:
                         current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -84,10 +85,10 @@ class PandasModel(QAbstractTableModel):
                 value = self._data.iloc[index.row(), index.column()]
                 if self._data.columns[index.column()] == "VOLUME":
                     try:
-                        return f"{float(value):.2f}"
+                        return f"{float(value):.2f}" if value is not None else "N/A"
                     except ValueError:
                         return value
-                return str(value)
+                return str(value) if value is not None else "N/A"
             elif role == Qt.TextAlignmentRole:
                 return Qt.AlignCenter
         return None
@@ -122,40 +123,73 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.api = GateioAPI()
         logger.debug("GateioAPI initialized")
         
+        # Inisialisasi DataFrame dan model untuk tableView_marketdata
         self.data = pd.DataFrame(columns=["TIME", "PAIR", "24H %", "PRICE", "VOLUME"])
         self.model = PandasModel(self.data)
         self.proxy = QSortFilterProxyModel()
         self.proxy.setSourceModel(self.model)
-        self.tableView.setModel(self.proxy)
-        self.tableView.setSortingEnabled(True)
-        self.tableView.horizontalHeader().setSortIndicatorShown(True)
-        self.tableView.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-        self.tableView.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
+        self.tableView_marketdata.setModel(self.proxy)
+        self.tableView_marketdata.setSortingEnabled(True)
+        self.tableView_marketdata.horizontalHeader().setSortIndicatorShown(True)
+        self.tableView_marketdata.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.tableView_marketdata.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
+        self.tableView_accountdata.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.tableView_accountdata.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
+        self.lineEdit_addpair.setPlaceholderText("e.g. BTC_USDT")
         logger.debug("TableView configured")
 
+        # Inisialisasi pasangan default
         self.pairs = ['BTC_USDT', 'ETH_USDT', 'SEAT_USDT','SHIB_USDT']
         logger.debug(f"Pairs set: {self.pairs}")
 
+        # Timer untuk pembaruan data
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.schedule_update)
         self.timer.start(15000)
         logger.debug("Timer started for data updates every 15 seconds")
 
+        # Hubungkan sinyal returnPressed dari lineEdit_addpair ke metode add_pair
+        self.lineEdit_addpair.returnPressed.connect(self.add_pair)
+        self.worker = None
         self.show()
+
+    def closeEvent(self, event):
+        if self.worker is not None:
+            self.worker.stop()
+            self.worker.quit()
+            self.worker.wait()
+        event.accept()
 
     def update_model(self, data_frame):
         self.model.update_data(data_frame)
 
     def schedule_update(self):
         logger.debug("Scheduling data update")
+        if self.worker is not None:
+            self.worker.stop()
+            self.worker.quit()
+            self.worker.wait()
         self.worker = QThreadWorker(self.pairs, self.api)
         self.worker.result_ready.connect(self.update_model)
         self.worker.start()
 
+    def add_pair(self):
+        pair = self.lineEdit_addpair.text().strip().upper()
+        if pair and pair not in self.pairs:  # Pastikan pasangan tidak kosong dan belum ada di daftar
+            # Tambahkan pasangan baru ke daftar pasangan
+            self.pairs.append(pair)
+            # Perbarui DataFrame dengan pasangan baru
+            new_row = pd.DataFrame([[pd.Timestamp.now(), pair, None, None, None]], columns=self.data.columns)
+            self.data = pd.concat([self.data, new_row], ignore_index=True)
+            self.update_model(self.data)  # Perbarui model dengan data terbaru
+            self.lineEdit_addpair.clear()
+            logger.debug(f"Pair added: {pair}")
+
 if __name__ == "__main__":
     app = QApplication(sys.argv)
+    mainWindow = MainWindow()
+    mainWindow.show()
     loop = qasync.QEventLoop(app)
     asyncio.set_event_loop(loop)
-    window = MainWindow()
     with loop:
-        loop.run_forever()
+        sys.exit(app.exec_())

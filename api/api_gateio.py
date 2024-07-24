@@ -1,5 +1,6 @@
 import os
 import asyncio
+import logging
 from dotenv import load_dotenv
 import requests
 from aiohttp import ClientSession
@@ -31,8 +32,10 @@ class GateioAPI:
             markets = response.json()
             return [market['id'] for market in markets]
         except requests.exceptions.RequestException as e:
+            logging.error(f"Error getting all symbols: {e}")
             return []
 
+    @retry(wait=wait_fixed(2), stop=stop_after_attempt(5))
     async def async_get_ticker_info(self, symbol: str, session: ClientSession) -> dict:
         url = f"{self.base_url}/spot/tickers?currency_pair={symbol}"
         try:
@@ -48,8 +51,10 @@ class GateioAPI:
                     }
                 return None
         except Exception as e:
+            logging.error(f"Error getting ticker info for {symbol}: {e}")
             return None
 
+    @retry(wait=wait_fixed(2), stop=stop_after_attempt(5))
     async def async_get_order_book(self, symbol: str, session: ClientSession, limit: int = 10) -> dict:
         url = f"{self.base_url}/spot/order_book?currency_pair={symbol}&limit={limit}"
         try:
@@ -58,6 +63,7 @@ class GateioAPI:
                 order_book = await response.json()
                 return order_book
         except Exception as e:
+            logging.error(f"Error getting order book for {symbol}: {e}")
             return None
 
     def get_account_balance(self) -> dict:
@@ -68,6 +74,7 @@ class GateioAPI:
             balance = response.json()
             return balance
         except requests.exceptions.RequestException as e:
+            logging.error(f"Error getting account balance: {e}")
             return None
 
     def get_open_orders(self, symbols: list) -> dict:
@@ -80,6 +87,7 @@ class GateioAPI:
                 open_orders = response.json()
                 all_open_orders[symbol] = open_orders
             except requests.exceptions.RequestException as e:
+                logging.error(f"Error getting open orders for {symbol}: {e}")
                 pass
         return all_open_orders
 
@@ -93,6 +101,7 @@ class GateioAPI:
                 closed_orders = response.json()
                 all_closed_orders[symbol] = closed_orders
             except requests.exceptions.RequestException as e:
+                logging.error(f"Error getting closed orders for {symbol}: {e}")
                 pass
         return all_closed_orders
 
@@ -104,6 +113,7 @@ class GateioAPI:
             server_time = response.json()
             return server_time
         except requests.exceptions.RequestException as e:
+            logging.error(f"Error getting server time: {e}")
             return None
 
     def create_order(self, symbol: str, side: str, amount: float, price: float) -> dict:
@@ -121,6 +131,7 @@ class GateioAPI:
             order = response.json()
             return order
         except requests.exceptions.RequestException as e:
+            logging.error(f"Error creating order for {symbol}: {e}")
             return None
 
     def cancel_order(self, symbol: str, order_id: str) -> dict:
@@ -131,6 +142,7 @@ class GateioAPI:
             cancel_result = response.json()
             return cancel_result
         except requests.exceptions.RequestException as e:
+            logging.error(f"Error canceling order {order_id} for {symbol}: {e}")
             return None
 
     def get_trade_history(self, symbol: str) -> list:
@@ -141,11 +153,5 @@ class GateioAPI:
             trade_history = response.json()
             return trade_history
         except requests.exceptions.RequestException as e:
+            logging.error(f"Error getting trade history for {symbol}: {e}")
             return []
-
-async def fetch_data_every_15_seconds(api, symbol):
-    async with ClientSession() as session:
-        while True:
-            ticker_info = await api.async_get_ticker_info(symbol, session)
-            print(f"Ticker info for {symbol}: {ticker_info}")
-            await asyncio.sleep(15)
