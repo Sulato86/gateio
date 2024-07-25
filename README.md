@@ -30,47 +30,79 @@ project_root/
 
 
 # api_gateio.py
+    Imports dan Konfigurasi Awal:
+    - Menggunakan os, asyncio, logging, ClientSession, dan ClientError dari aiohttp, serta dotenv untuk memuat variabel lingkungan.
+    - Menggunakan gate_api untuk mengakses API Gate.io, termasuk SpotApi, Configuration, ApiClient, dan ApiException.
 
-    Impor Modul:
-    os, asyncio, dotenv, requests, aiohttp, tenacity, logging: Berbagai modul yang digunakan untuk manajemen lingkungan, HTTP requests, asynchronous programming, retries, dan logging.
+    Inisialisasi GateioAPI:
+    - Kelas GateioAPI menginisialisasi dengan api_key dan secret_key dari environment variables.
+    - Mengonfigurasi ApiClient dan SpotApi dari gate_api.
+    - Menambahkan konfigurasi rate_limit untuk membatasi jumlah permintaan per detik.
+    - Logging untuk mencatat inisialisasi dan kesalahan.
+
+    Metode get_all_symbols:
+    - Mengambil semua pasangan mata uang kripto yang tersedia dari API Gate.io.
+    - Menangani pengecualian ApiException dan mencatat kesalahan jika terjadi.
+
+    Metode async_get_ticker_info:
+    - Metode asinkron untuk mendapatkan informasi ticker dari API Gate.io menggunakan ClientSession.
+    - Menangani permintaan dan menangani pengecualian jika terjadi kesalahan.
+
+    Potensi masalah yang perlu diperhatikan:
+    - Tangani pengecualian dan kesalahan jaringan dengan baik untuk menghindari kegagalan aplikasi.
+
+# pandasa.py
+    Imports dan Konfigurasi Awal:
+    - Menggunakan logging untuk mencatat log dan pandas untuk pengolahan data.
+    - Mengimpor QAbstractTableModel dan Qt dari PyQt5.QtCore.
+
+    Inisialisasi Logging:
+    - Menyiapkan konfigurasi logging untuk mencatat ke file (pandas.log) dan ke console
+
+    Kelas PandasModel:
+    Subclass dari QAbstractTableModel.
+    - Metode __init__: Menginisialisasi dengan data yang diberikan dan mencatat inisialisasi.
+    - Metode rowCount: Mengembalikan jumlah baris data.
+    - Metode columnCount: Mengembalikan jumlah kolom data.
+    - Metode data: Mengembalikan data untuk tampilan tabel berdasarkan indeks dan peran yang diberikan.
+    - Mengembalikan nilai sebagai string dan menangani nilai NaN.
+    - Metode headerData: Mengembalikan data header untuk kolom dan baris.
+    - Metode sort: Mengurutkan data berdasarkan kolom yang ditentukan dan mencatat sebelum dan sesudah pengurutan (menampilkan 10 baris pertama sebelum sorting).
     
-    Load Environment Variables:
-    - Menggunakan load_dotenv() untuk memuat API key dan secret key dari file .env.
+    Potensi masalah yang perlu diperhatikan:
+    - Pastikan data yang diteruskan ke PandasModel valid dan tidak kosong.
+    - Tangani perubahan data secara efisien untuk menghindari masalah kinerja pada tabel besar.
 
-    Setup Logging:
-    - Menyiapkan logging untuk mencatat log ke file config.log.
+# workers.py
+    Imports dan Konfigurasi Awal:
+    - Menggunakan asyncio, pandas, logging, ClientSession dari aiohttp, datetime, QThread, dan pyqtSignal dari PyQt5.QtCore.
+    - Mengimpor GateioAPI dari api.api_gateio.
 
-    Class GateioAPI:
-    - init: Menginisialisasi API key, secret key, dan base URL.
-    - get_all_symbols: Mendapatkan semua simbol pasar yang tersedia di Gate.io dengan mencoba ulang hingga 5 kali jika terjadi kesalahan.
-    - async_get_ticker_info: Mengambil informasi ticker untuk simbol tertentu secara asinkron.
-    - async_get_order_book: Mengambil order book untuk simbol tertentu secara asinkron.
-    - check_balance: Memeriksa saldo akun dengan mencoba ulang hingga 5 kali jika terjadi kesalahan.
-    - get_open_orders: Mendapatkan semua order yang terbuka untuk daftar simbol yang diberikan.
-    - get_closed_orders: Mendapatkan semua order yang sudah tertutup untuk daftar simbol yang diberikan.
-    - get_server_time: Mengambil waktu server dari Gate.io.
+    Inisialisasi Logging:
+    - Menyiapkan konfigurasi logging untuk mencatat ke file (workers.log) dan ke console.
 
-    Fungsi Asinkron:
-    - fetch_data_every_15_seconds: Fungsi ini mengambil informasi ticker untuk simbol tertentu setiap 15 detik dan mencatat log.
+    Kelas QThreadWorker:
+    - Subclass dari QThread.
+    - Sinyal result_ready: Sinyal yang akan mengirimkan DataFrame Pandas saat data sudah siap.
+    - Metode __init__: Menginisialisasi dengan daftar pasangan mata uang dan kunci API. Membuat instance GateioAPI.
+    - Metode run: Memulai event loop asinkron untuk mendapatkan data pasar.
+    - Metode fetch_data: Metode asinkron untuk mengambil data dari API Gate.io untuk setiap pasangan mata uang.
+    - Menggunakan ClientSession untuk membuat permintaan HTTP.
+    - Memproses data yang diterima dan mencatatnya.
 
-    Penggunaan Contoh:
-    - Inisialisasi objek GateioAPI.
-    - Mendapatkan semua simbol pasar dan mencetaknya.
-    - Menjalankan fungsi fetch_data_every_15_seconds secara asinkron untuk simbol 'BTC_USDT'.
+    Kelas BalanceWorker:
+    - Kelas ini belum terlihat dalam bagian kode yang dibaca. Namun, asumsi dari penggunaan di main_window.py, kelas ini kemungkinan besar mirip dengan QThreadWorker tetapi fokus pada mendapatkan saldo akun.
+
+    Potensi masalah yang perlu diperhatikan:
+    - Pastikan event loop asinkron dikelola dengan benar untuk menghindari kebocoran memori atau thread yang tidak berhenti.
+    - Tangani pengecualian jaringan dengan baik untuk menghindari kegagalan aplikasi.
 
 # main_window.py
-    PandasModel:
-    - Inisialisasi Model (__init__): Menghubungkan pandas DataFrame dengan QTableView.
-    - rowCount: Mengembalikan jumlah baris dalam DataFrame.
-    - columnCount: Mengembalikan jumlah kolom dalam DataFrame.
-    - data: Mengembalikan data untuk sel tertentu dalam DataFrame.
-    - headerData: Mengembalikan data header untuk kolom atau baris tertentu.
-    - update_data: Memperbarui model dengan data baru dan mereset tampilan.
 
-    MainWindow:
-    - Inisialisasi Jendela Utama (__init__): Mengatur antarmuka pengguna dan model tabel, serta menginisialisasi API Gate.io.
-    - fetch_data: Mengambil data dari API dan memperbarui model dengan informasi terbaru.
-    - schedule_update: Menjadwalkan pembaruan data setiap 5 detik menggunakan timer.
+# Kesimpulan
+    - workers.py bertanggung jawab untuk mengambil data dari API Gate.io dan memancarkan sinyal dengan DataFrame hasil pengambilan data.
+    - main_window.py menangani sinyal tersebut, memperbarui data di PandasModel, dan memastikan tampilan GUI diperbarui dengan data terbaru.
+    - pandasa.py mengelola tampilan data dalam tabel GUI menggunakan PandasModel.
 
 ======================Designer=================
 pyuic5 -o ui/ui_main_window.py ui/main_window.ui

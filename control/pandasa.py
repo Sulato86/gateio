@@ -7,7 +7,7 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
 # Handler untuk logging ke file
-file_handler = logging.FileHandler('pandas.log')
+file_handler = logging.FileHandler('pandasa.log')
 file_handler.setLevel(logging.DEBUG)
 
 # Handler untuk logging ke console

@@ -1,3 +1,5 @@
+# main_window.py
+
 import sys
 import os
 import asyncio
@@ -8,10 +10,11 @@ from control.pandasa import PandasModel
 from control.workers import QThreadWorker, BalanceWorker
 from dotenv import load_dotenv
 from PyQt5 import QtCore, QtWidgets
-from PyQt5.QtWidgets import QApplication, QMainWindow, QHeaderView
-from PyQt5.QtCore import QSortFilterProxyModel, QTimer, Qt
+from PyQt5.QtWidgets import QApplication, QMainWindow, QHeaderView, QFileDialog, QProgressDialog, QMessageBox
+from PyQt5.QtCore import QSortFilterProxyModel, Qt
 from api.api_gateio import GateioAPI
 from ui.ui_main_window import Ui_MainWindow
+from control.csv_handler import ExportWorker  # Import ExportWorker
 
 # Memuat variabel lingkungan dari file .env
 load_dotenv()
@@ -29,7 +32,7 @@ console_handler = logging.StreamHandler()
 console_handler.setLevel(logging.DEBUG)
 
 # Format logging
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levellevelname)s - %(message)s')
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 file_handler.setFormatter(formatter)
 console_handler.setFormatter(formatter)
 
@@ -39,12 +42,25 @@ logger.addHandler(console_handler)
 
 class CustomSortFilterProxyModel(QSortFilterProxyModel):
     def lessThan(self, left, right):
-        left_data = self.sourceModel().data(left)
-        right_data = self.sourceModel().data(right)
-        if left.column() != 0:  # Assuming 0 is the column index for TIME
-            left_data = float(left_data)
-            right_data = float(right_data)
-        return left_data < right_data
+        left_data = self.sourceModel().data(left, Qt.DisplayRole)
+        right_data = self.sourceModel().data(right, Qt.DisplayRole)
+        
+        column = left.column()
+        pair_column_index = 1  # Asumsikan indeks kolom "PAIR" adalah 1
+        
+        if column == pair_column_index:
+            # Lakukan perbandingan string untuk kolom "PAIR"
+            return left_data < right_data
+        else:
+            try:
+                # Coba konversi ke float untuk kolom numerik lainnya
+                left_data = float(left_data)
+                right_data = float(right_data)
+            except ValueError:
+                # Jika tidak bisa dikonversi, lakukan perbandingan string
+                return left_data < right_data
+            
+            return left_data < right_data
 
 class MainWindow(QMainWindow, Ui_MainWindow):
     def __init__(self):
@@ -58,7 +74,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         logger.debug("GateioAPI initialized")
 
         # Inisialisasi daftar pasangan
-        self.pairs = ["BTC_USDT", "ETH_USDT", "LTC_USDT", "XRP_USDT", "EOS_USDT", "BCH_USDT", "TRX_USDT", "ETC_USDT"]
+        self.pairs = ["BTC_USDT", "ETH_USDT", "LTC_USDT", "XRP_USDT", "BCH_USDT", "EOS_USDT", "TRX_USDT", "ADA_USDT", "XLM_USDT", "LINK_USDT"]
         
         # Inisialisasi DataFrame dan model untuk tableView_marketdata
         self.data_market = pd.DataFrame(columns=["TIME", "PAIR", "24H %", "PRICE", "VOLUME"])
@@ -87,17 +103,20 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.tableView_accountdata.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
 
         # Inisialisasi QThreadWorker untuk update data
-        self.worker = None
-        self.balance_worker = None  # Inisialisasi BalanceWorker
-        self.schedule_update()
+        self.worker = QThreadWorker(self.pairs, self.api_key, self.api_secret)
+        self.worker.result_ready.connect(self.update_model_market)
+        self.worker.start()
 
-        # Menggunakan QTimer untuk update berkala
-        self.timer = QTimer(self)
-        self.timer.timeout.connect(self.schedule_update)
-        self.timer.start(10000)  # Update setiap 60 detik
+        # Inisialisasi BalanceWorker untuk update saldo akun
+        self.balance_worker = BalanceWorker(self.api_key, self.api_secret)
+        self.balance_worker.balance_signal.connect(self.update_balance)
+        self.balance_worker.start()
 
         # Menghubungkan lineEdit_addpair dengan fungsi add_pair ketika ENTER ditekan
         self.lineEdit_addpair.returnPressed.connect(self.add_pair)
+        
+        # Menghubungkan tombol pushButton_export ke fungsi export_marketdata_to_csv
+        self.pushButton_export.clicked.connect(self.export_marketdata_to_csv)
 
     def update_model_market(self, data_frame):
         logger.debug("Updating market model with new data")
@@ -112,28 +131,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.data_account = data_frame
         self.proxy_model_account.setSourceModel(PandasModel(self.data_account))
         logger.debug("Account model updated.")
-
-    def schedule_update(self):
-        logger.debug("Scheduling data update")
-        if self.worker is not None:
-            logger.debug("Stopping existing worker")
-            self.worker.stop()
-            self.worker.quit()
-            self.worker.wait()
-        logger.debug("Starting new worker")
-        self.worker = QThreadWorker(self.pairs, self.api_key, self.api_secret)
-        self.worker.result_ready.connect(self.update_model_market)
-        self.worker.start()
-
-        # Mulai BalanceWorker untuk mendapatkan saldo akun
-        if self.balance_worker is not None:
-            logger.debug("Stopping existing balance worker")
-            self.balance_worker.quit()
-            self.balance_worker.wait()
-        logger.debug("Starting new balance worker")
-        self.balance_worker = BalanceWorker(self.api_key, self.api_secret)
-        self.balance_worker.balance_signal.connect(self.update_balance)
-        self.balance_worker.start()
 
     def update_balance(self, balance):
         logger.debug("Update balance called.")
@@ -157,9 +154,31 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.lineEdit_addpair.clear()
             logger.debug(f"Pair added: {pair}")
 
-    def some_function(self):
-        # Placeholder function for other UI elements
-        logger.debug("Some function called")
+    def export_marketdata_to_csv(self):
+        model = self.tableView_marketdata.model()
+        options = QFileDialog.Options()
+        filePath, _ = QFileDialog.getSaveFileName(self, "Save CSV", "", "CSV Files (*.csv);;All Files (*)", options=options)
+        if filePath:
+            self.progress_dialog = QProgressDialog("Mengekspor data...", "Batal", 0, 100, self)
+            self.progress_dialog.setWindowModality(Qt.WindowModal)
+            self.progress_dialog.setMinimumDuration(0)
+            
+            self.export_worker = ExportWorker(model, filePath)
+            self.export_worker.progress.connect(self.progress_dialog.setValue)
+            self.export_worker.finished.connect(self.on_export_finished)
+            self.export_worker.start()
+            self.progress_dialog.exec_()
+
+    def on_export_finished(self, message):
+        self.progress_dialog.cancel()
+        QMessageBox.information(self, "Ekspor Selesai", message)
+
+    def closeEvent(self, event):
+        self.worker.stop()
+        self.worker.wait()
+        self.balance_worker.quit()
+        self.balance_worker.wait()
+        event.accept()
 
 if __name__ == "__main__":
     app = qasync.QApplication(sys.argv)

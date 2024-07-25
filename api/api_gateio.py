@@ -42,6 +42,8 @@ class GateioAPI:
         self.api_client = ApiClient(self.configuration)
         self.spot_api = SpotApi(self.api_client)
         self.rate_limit = rate_limit  # Max requests per second
+        self.requests_made = 0
+        self.last_request_time = time.time()
         logger.debug("GateioAPI instance created with rate_limit: %d", rate_limit)
 
     def get_all_symbols(self) -> list:
@@ -52,19 +54,28 @@ class GateioAPI:
             logger.error(f"Error getting all symbols: {e}")
             return []
 
+    async def rate_limited_fetch(self, url, session):
+        current_time = time.time()
+        if self.requests_made >= self.rate_limit and (current_time - self.last_request_time) < 1:
+            await asyncio.sleep(1 - (current_time - self.last_request_time))
+            self.requests_made = 0
+            self.last_request_time = time.time()
+
+        self.requests_made += 1
+        async with session.get(url) as response:
+            response.raise_for_status()
+            return await response.json()
+
     async def async_get_ticker_info(self, symbol: str, session: ClientSession) -> dict:
         try:
-            async with session.get(f'https://api.gateio.ws/api/v4/spot/tickers?currency_pair={symbol}') as response:
-                response.raise_for_status()
-                data = await response.json()
-                logger.debug(f"Data received for {symbol}: {data}")
-                if data:
-                    return data[0]  # Assuming the first item in the list is the relevant data
-                return {}
+            data = await self.rate_limited_fetch(f'https://api.gateio.ws/api/v4/spot/tickers?currency_pair={symbol}', session)
+            logger.debug(f"Data received for {symbol}: {data}")
+            if data:
+                return data[0]  # Assuming the first item in the list is the relevant data
+            return {}
         except ClientError as e:
             logger.error(f"Error getting ticker info for {symbol}: {e}")
         return {}
-
 
     def get_account_balance(self) -> dict:
         try:
@@ -129,17 +140,7 @@ class GateioAPI:
             logger.error(f"Error getting trade history for {symbol}: {e}")
             return []
 
-    async def rate_limited_fetch(self, url, symbol, session):
-        while True:
-            start_time = time.time()
-            data = await self.async_get_ticker_info(symbol, session)
-            end_time = time.time()
-            elapsed_time = end_time - start_time
-            if elapsed_time < 1 / self.rate_limit:
-                await asyncio.sleep(1 / self.rate_limit - elapsed_time)
-            return data
-
     async def fetch_tickers_for_symbols(self, symbols: list) -> dict:
         async with ClientSession() as session:
-            tasks = [self.rate_limited_fetch(f'https://api.gateio.ws/api/v4/spot/tickers?currency_pair={symbol}', symbol, session) for symbol in symbols]
+            tasks = [self.async_get_ticker_info(symbol, session) for symbol in symbols]
             return await asyncio.gather(*tasks)

@@ -41,9 +41,14 @@ class QThreadWorker(QThread):
         logger.debug("QThreadWorker started")
         self.loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self.loop)
-        self.loop.run_until_complete(self.fetch_data())
+        self.loop.run_until_complete(self.run_fetch_data())
         self.loop.close()
         logger.debug("QThreadWorker run method completed")
+
+    async def run_fetch_data(self):
+        while self._is_running:
+            await self.fetch_data()
+            await asyncio.sleep(10)  # Tunggu 10 detik sebelum pembaruan berikutnya
 
     async def fetch_data(self):
         try:
