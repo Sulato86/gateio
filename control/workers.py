@@ -57,11 +57,13 @@ class QThreadWorker(QThread):
                         data = await self.api.async_get_ticker_info(pair, session)
                         logger.debug(f"Received data for {pair}: {data}")
                         if data:
-                            current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                            current_time = datetime.now().strftime('%d-%m-%Y %H:%M:%S')
+                            change_percentage = pd.to_numeric(data.get('change_percentage', 'N/A'), errors='coerce')
+                            logger.debug(f"Change percentage for {pair}: {change_percentage} (type: {type(change_percentage)})")
                             row_data = {
                                 "TIME": current_time,
                                 "PAIR": pair,
-                                "24H %": data.get('change_percentage', 'N/A'),
+                                "24H %": change_percentage,
                                 "PRICE": data['last'],
                                 "VOLUME": data['base_volume']
                             }

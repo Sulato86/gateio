@@ -55,19 +55,16 @@ class GateioAPI:
     async def async_get_ticker_info(self, symbol: str, session: ClientSession) -> dict:
         try:
             async with session.get(f'https://api.gateio.ws/api/v4/spot/tickers?currency_pair={symbol}') as response:
-                if response.status == 200:
-                    ticker = await response.json()
-                    return ticker[0]
-                else:
-                    logger.error(f"Error: Received status code {response.status} for symbol {symbol}")
-                    return {}
-        except asyncio.TimeoutError:
-            logger.error(f"Request timed out for {symbol}")
+                response.raise_for_status()
+                data = await response.json()
+                logger.debug(f"Data received for {symbol}: {data}")
+                if data:
+                    return data[0]  # Assuming the first item in the list is the relevant data
+                return {}
         except ClientError as e:
-            logger.error(f"Client error: {e}")
-        except Exception as e:
-            logger.error(f"An error occurred: {e}")
+            logger.error(f"Error getting ticker info for {symbol}: {e}")
         return {}
+
 
     def get_account_balance(self) -> dict:
         try:

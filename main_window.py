@@ -4,12 +4,12 @@ import asyncio
 import pandas as pd
 import logging
 import qasync
-from control.pandas import PandasModel  # Pastikan impor dari pandas_model.py
-from control.workers import QThreadWorker, BalanceWorker  # Pastikan import BalanceWorker
+from control.pandasa import PandasModel
+from control.workers import QThreadWorker, BalanceWorker
 from dotenv import load_dotenv
-from PyQt5 import QtCore, QtWidgets  # Tambahkan QtCore untuk Geometry
+from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtWidgets import QApplication, QMainWindow, QHeaderView
-from PyQt5.QtCore import QSortFilterProxyModel, QTimer
+from PyQt5.QtCore import QSortFilterProxyModel, QTimer, Qt
 from api.api_gateio import GateioAPI
 from ui.ui_main_window import Ui_MainWindow
 
@@ -29,13 +29,22 @@ console_handler = logging.StreamHandler()
 console_handler.setLevel(logging.DEBUG)
 
 # Format logging
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levellevelname)s - %(message)s')
 file_handler.setFormatter(formatter)
 console_handler.setFormatter(formatter)
 
 # Menambahkan handler ke logger
 logger.addHandler(file_handler)
 logger.addHandler(console_handler)
+
+class CustomSortFilterProxyModel(QSortFilterProxyModel):
+    def lessThan(self, left, right):
+        left_data = self.sourceModel().data(left)
+        right_data = self.sourceModel().data(right)
+        if left.column() != 0:  # Assuming 0 is the column index for TIME
+            left_data = float(left_data)
+            right_data = float(right_data)
+        return left_data < right_data
 
 class MainWindow(QMainWindow, Ui_MainWindow):
     def __init__(self):
@@ -53,62 +62,56 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         
         # Inisialisasi DataFrame dan model untuk tableView_marketdata
         self.data_market = pd.DataFrame(columns=["TIME", "PAIR", "24H %", "PRICE", "VOLUME"])
-        self.model_market = PandasModel(self.data_market)
-        self.proxy_market = QSortFilterProxyModel()
-        self.proxy_market.setSourceModel(self.model_market)
-        self.tableView_marketdata.setModel(self.proxy_market)
+
+        # Menggunakan CustomSortFilterProxyModel untuk sorting
+        self.proxy_model_market = CustomSortFilterProxyModel(self)
+        self.proxy_model_market.setSourceModel(PandasModel(self.data_market))
+        self.proxy_model_market.setSortRole(Qt.DisplayRole)
+        
+        self.tableView_marketdata.setModel(self.proxy_model_market)
         self.tableView_marketdata.setSortingEnabled(True)
         self.tableView_marketdata.horizontalHeader().setSortIndicatorShown(True)
         self.tableView_marketdata.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-        self.tableView_marketdata.verticalHeader().setVisible(False)
-        logger.debug("TableView for market data initialized")
 
         # Inisialisasi DataFrame dan model untuk tableView_accountdata
         self.data_account = pd.DataFrame(columns=["CURRENCY", "AVAILABLE"])
-        self.model_account = PandasModel(self.data_account)
-        self.proxy_account = QSortFilterProxyModel()
-        self.proxy_account.setSourceModel(self.model_account)
-        self.tableView_accountdata.setModel(self.proxy_account)
+        
+        # Menggunakan CustomSortFilterProxyModel untuk sorting pada tableView_accountdata
+        self.proxy_model_account = CustomSortFilterProxyModel(self)
+        self.proxy_model_account.setSourceModel(PandasModel(self.data_account))
+        self.proxy_model_account.setSortRole(Qt.DisplayRole)
+        
+        self.tableView_accountdata.setModel(self.proxy_model_account)
         self.tableView_accountdata.setSortingEnabled(True)
         self.tableView_accountdata.horizontalHeader().setSortIndicatorShown(True)
         self.tableView_accountdata.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-        self.tableView_accountdata.verticalHeader().setVisible(False)
-        logger.debug("TableView for account data initialized")
 
-        # Inisialisasi saldo akun
-        self.balance_worker = BalanceWorker(self.api_key, self.api_secret)
-        self.balance_worker.balance_signal.connect(self.update_balance)
-        self.balance_worker.start()
-
-        # Inisialisasi timer untuk memperbarui data pasar
-        self.timer = QTimer()
-        self.timer.timeout.connect(self.schedule_update)
-        self.timer.start(10000)  # Update setiap 10 detik
-        logger.debug("Update timer initialized")
-
-        # Hubungkan sinyal returnPressed dari lineEdit_addpair ke metode add_pair
-        self.lineEdit_addpair.returnPressed.connect(self.add_pair)
+        # Inisialisasi QThreadWorker untuk update data
         self.worker = None
-        self.show()
+        self.balance_worker = None  # Inisialisasi BalanceWorker
+        self.schedule_update()
 
-    def closeEvent(self, event):
-        logger.debug("Closing application")
-        if self.worker is not None:
-            self.worker.stop()
-            self.worker.quit()
-            self.worker.wait()
-        if self.balance_worker is not None:
-            self.balance_worker.quit()
-            self.balance_worker.wait()
-        event.accept()
+        # Menggunakan QTimer untuk update berkala
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.schedule_update)
+        self.timer.start(10000)  # Update setiap 60 detik
+
+        # Menghubungkan lineEdit_addpair dengan fungsi add_pair ketika ENTER ditekan
+        self.lineEdit_addpair.returnPressed.connect(self.add_pair)
 
     def update_model_market(self, data_frame):
         logger.debug("Updating market model with new data")
-        self.model_market.update_data(data_frame)
+        for column in ["24H %", "PRICE", "VOLUME"]:
+            data_frame[column] = data_frame[column].astype(float)
+        self.data_market = data_frame
+        self.proxy_model_market.setSourceModel(PandasModel(self.data_market))
 
     def update_model_account(self, data_frame):
         logger.debug("Updating account model with new data")
-        self.model_account.update_data(data_frame)
+        logger.debug(f"Account DataFrame:\n{data_frame}")
+        self.data_account = data_frame
+        self.proxy_model_account.setSourceModel(PandasModel(self.data_account))
+        logger.debug("Account model updated.")
 
     def schedule_update(self):
         logger.debug("Scheduling data update")
@@ -122,27 +125,41 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.worker.result_ready.connect(self.update_model_market)
         self.worker.start()
 
+        # Mulai BalanceWorker untuk mendapatkan saldo akun
+        if self.balance_worker is not None:
+            logger.debug("Stopping existing balance worker")
+            self.balance_worker.quit()
+            self.balance_worker.wait()
+        logger.debug("Starting new balance worker")
+        self.balance_worker = BalanceWorker(self.api_key, self.api_secret)
+        self.balance_worker.balance_signal.connect(self.update_balance)
+        self.balance_worker.start()
+
     def update_balance(self, balance):
+        logger.debug("Update balance called.")
         if 'error' in balance:
             logger.error(f"Error: {balance['message']}")
         else:
-            data = [{"CURRENCY": currency, "AVAILABLE": balance} for currency, balance in balance.items()]
+            data = [{"CURRENCY": currency, "AVAILABLE": available} for currency, available in balance.items()]
             df = pd.DataFrame(data)
+            logger.debug(f"Balance DataFrame:\n{df}")
             self.update_model_account(df)
             logger.debug("Account balance updated")
 
     def add_pair(self):
         pair = self.lineEdit_addpair.text().strip().upper()
-        if pair and pair not in self.pairs:  # Pastikan pasangan tidak kosong dan belum ada di daftar
+        if pair and pair not in self.pairs:
             logger.debug(f"Adding new pair: {pair}")
-            # Tambahkan pasangan baru ke daftar pasangan
             self.pairs.append(pair)
-            # Perbarui DataFrame dengan pasangan baru
             new_row = pd.DataFrame([[pd.Timestamp.now(), pair, None, None, None]], columns=self.data_market.columns)
             self.data_market = pd.concat([self.data_market, new_row], ignore_index=True)
-            self.update_model_market(self.data_market)  # Perbarui model dengan data terbaru
+            self.proxy_model_market.setSourceModel(PandasModel(self.data_market))
             self.lineEdit_addpair.clear()
             logger.debug(f"Pair added: {pair}")
+
+    def some_function(self):
+        # Placeholder function for other UI elements
+        logger.debug("Some function called")
 
 if __name__ == "__main__":
     app = qasync.QApplication(sys.argv)

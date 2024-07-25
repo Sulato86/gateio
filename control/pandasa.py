@@ -30,42 +30,41 @@ class PandasModel(QAbstractTableModel):
         logger.debug("PandasModel initialized with data")
 
     def rowCount(self, parent=None):
-        count = len(self._data)
-        logger.debug(f"Row count requested: {count}")
-        return count
+        return len(self._data)
 
     def columnCount(self, parent=None):
-        count = len(self._data.columns)
-        logger.debug(f"Column count requested: {count}")
-        return count
+        return len(self._data.columns)
 
     def data(self, index, role=Qt.DisplayRole):
         if not index.isValid():
             return None
-        
         if role == Qt.DisplayRole:
-            value = str(self._data.iloc[index.row(), index.column()])
-            logger.debug(f"Data requested at ({index.row()}, {index.column()}): {value}")
-            return value
+            value = self._data.iloc[index.row(), index.column()]
+            if pd.isnull(value):
+                return ""
+            return str(value)
         return None
 
     def headerData(self, section, orientation, role):
         if role != Qt.DisplayRole:
             return None
-
         if orientation == Qt.Horizontal:
-            header = self._data.columns[section]
-            logger.debug(f"Header data requested for column {section}: {header}")
-            return header
+            return self._data.columns[section]
         if orientation == Qt.Vertical:
-            header = self._data.index[section]
-            logger.debug(f"Header data requested for row {section}: {header}")
-            return header
-        return None
+            return self._data.index[section]
+
+    def sort(self, column, order):
+        colname = self._data.columns[column]
+        logger.debug(f"Sorting column {colname} in {'ascending' if order == Qt.AscendingOrder else 'descending'} order")
+        logger.debug(f"Before sorting: {self._data[[colname]].head(10)}")  # Menampilkan 10 baris pertama sebelum sorting
+        self.layoutAboutToBeChanged.emit()
+        self._data.sort_values(by=[colname], ascending=(order == Qt.AscendingOrder), inplace=True)
+        self.layoutChanged.emit()
+        logger.debug(f"After sorting: {self._data[[colname]].head(10)}")  # Menampilkan 10 baris pertama setelah sorting
 
     def update_data(self, data):
-        self.beginResetModel()  # Notifikasi dimulai
+        logger.debug(f"Updating PandasModel data with {data.dtypes}")
+        self.layoutAboutToBeChanged.emit()
         self._data = data
-        self.endResetModel()  # Notifikasi selesai
-        logger.debug("Data updated")
-
+        self.layoutChanged.emit()
+        logger.debug(f"PandasModel data updated to {self._data.dtypes}")
