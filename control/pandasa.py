@@ -26,13 +26,14 @@ class PandasModel(QAbstractTableModel):
             return str(value)
         return None
 
-    def headerData(self, section, orientation, role):
+    def headerData(self, section, orientation, role=Qt.DisplayRole):  # Menambahkan nilai default untuk role
         if role != Qt.DisplayRole:
             return None
         if orientation == Qt.Horizontal:
             return self._data.columns[section]
         if orientation == Qt.Vertical:
             return self._data.index[section]
+        return None
 
     def sort(self, column, order):
         colname = self._data.columns[column]

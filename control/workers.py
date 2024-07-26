@@ -11,6 +11,9 @@ logger = setup_logging('workers.log')
 
 class QThreadWorker(QThread):
     result_ready = pyqtSignal(pd.DataFrame)
+    price_check_signal = pyqtSignal(dict)  # Signal baru untuk memeriksa harga notifikasi
+    export_complete_signal = pyqtSignal()  # Signal untuk ekspor data selesai
+    import_complete_signal = pyqtSignal(pd.DataFrame)  # Signal untuk impor data selesai
 
     def __init__(self, pairs, api_key, api_secret):
         super(QThreadWorker, self).__init__()
@@ -57,6 +60,8 @@ class QThreadWorker(QThread):
                             }
                             rows.append(row_data)
                             logger.debug(f"Fetched data for {pair}: {row_data}")
+                            # Emit signal for price check
+                            self.price_check_signal.emit({"pair": pair, "price": data['last']})
                     except Exception as e:
                         logger.error(f"Error fetching data for {pair}: {e}")
             if rows:
@@ -71,6 +76,24 @@ class QThreadWorker(QThread):
         logger.debug("QThreadWorker stopping")
         self.quit()
         self.wait()
+
+    # Fungsi Ekspor Data
+    def export_data(self, data_frame, file_path):
+        try:
+            data_frame.to_csv(file_path, index=False)
+            logger.debug(f"Data successfully exported to {file_path}")
+            self.export_complete_signal.emit()
+        except Exception as e:
+            logger.error(f"Error exporting data: {e}")
+
+    # Fungsi Impor Data
+    def import_data(self, file_path):
+        try:
+            data_frame = pd.read_csv(file_path)
+            logger.debug(f"Data successfully imported from {file_path}")
+            self.import_complete_signal.emit(data_frame)
+        except Exception as e:
+            logger.error(f"Error importing data: {e}")
 
 class BalanceWorker(QThread):
     balance_signal = pyqtSignal(dict)
