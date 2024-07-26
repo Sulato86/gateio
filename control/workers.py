@@ -23,9 +23,11 @@ class QThreadWorker(QThread):
         logger.debug("QThreadWorker started")
         self.loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self.loop)
-        self.loop.run_until_complete(self.run_fetch_data())
-        self.loop.close()
-        logger.debug("QThreadWorker run method completed")
+        try:
+            self.loop.run_until_complete(self.run_fetch_data())
+        finally:
+            self.loop.close()
+            logger.debug("QThreadWorker run method completed")
 
     async def run_fetch_data(self):
         while self._is_running:
@@ -67,6 +69,8 @@ class QThreadWorker(QThread):
     def stop(self):
         self._is_running = False
         logger.debug("QThreadWorker stopping")
+        self.quit()
+        self.wait()
 
 class BalanceWorker(QThread):
     balance_signal = pyqtSignal(dict)
@@ -74,11 +78,24 @@ class BalanceWorker(QThread):
     def __init__(self, api_key, api_secret):
         super(BalanceWorker, self).__init__()
         self.api = GateioAPI(api_key, api_secret)
+        self._is_running = True
+        logger.debug("BalanceWorker initialized")
 
     def run(self):
-        try:
-            balance = self.api.get_account_balance()
-            self.balance_signal.emit(balance)
-            logger.debug("Balance fetched and signal emitted")
-        except Exception as e:
-            logger.error(f"Error fetching balance: {e}")
+        logger.debug("BalanceWorker started")
+        while self._is_running:
+            try:
+                balance = self.api.get_account_balance()
+                self.balance_signal.emit(balance)
+                logger.debug("Balance fetched and signal emitted")
+                # Sleep for a specified interval before fetching the balance again
+                QThread.sleep(60)
+            except Exception as e:
+                logger.error(f"Error fetching balance: {e}")
+                self._is_running = False
+
+    def stop(self):
+        self._is_running = False
+        logger.debug("BalanceWorker stopping")
+        self.quit()
+        self.wait()

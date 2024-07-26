@@ -39,11 +39,13 @@ class PandasModel(QAbstractTableModel):
         self.layoutAboutToBeChanged.emit()
         self._data.sort_values(by=[colname], ascending=(order == Qt.AscendingOrder), inplace=True)
         self.layoutChanged.emit()
+        logger.debug(f"Data sorted by {colname} in {'ascending' if order == Qt.AscendingOrder else 'descending'} order")
 
     def update_data(self, data):
         self.layoutAboutToBeChanged.emit()
         self._data = data
         self.layoutChanged.emit()
+        logger.debug("Data model updated")
 
 class CustomSortFilterProxyModel(QSortFilterProxyModel):
     def lessThan(self, left, right):
@@ -54,12 +56,21 @@ class CustomSortFilterProxyModel(QSortFilterProxyModel):
         pair_column_index = 1
         
         if column == pair_column_index:
-            return left_data < right_data
+            result = left_data < right_data
+            logger.debug(f"Comparing pairs: {left_data} < {right_data}: {result}")
+            return result
         else:
             try:
                 left_data = float(left_data)
                 right_data = float(right_data)
+                result = left_data < right_data
+                logger.debug(f"Comparing numerical data: {left_data} < {right_data}: {result}")
+                return result
             except ValueError:
-                return left_data < right_data
-            
-            return left_data < right_data
+                result = left_data < right_data
+                logger.debug(f"Comparing string data: {left_data} < {right_data}: {result}")
+                return result
+
+    def filterAcceptsRow(self, source_row, source_parent):
+        # You can implement custom filtering logic here if needed
+        return super().filterAcceptsRow(source_row, source_parent)

@@ -7,7 +7,6 @@ from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtWidgets import QApplication, QMainWindow, QHeaderView, QFileDialog, QProgressDialog, QMessageBox
 from PyQt5.QtCore import Qt
 from dotenv import load_dotenv
-from api.api_gateio import GateioAPI
 from control.pandasa import PandasModel, CustomSortFilterProxyModel
 from control.workers import QThreadWorker, BalanceWorker
 from control.csv_handler import ExportWorker, import_pairs_from_csv
@@ -28,8 +27,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # Inisialisasi API Gate.io dengan API key dan secret dari environment variables
         self.api_key = os.getenv('API_KEY')
         self.api_secret = os.getenv('SECRET_KEY')
-        self.api = GateioAPI(self.api_key, self.api_secret)
-        logger.debug("GateioAPI initialized")
+        logger.debug("API keys initialized")
 
         # Inisialisasi daftar pasangan
         self.pairs = ["BTC_USDT", "ETH_USDT"]
@@ -114,6 +112,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.proxy_model_market.setSourceModel(PandasModel(self.data_market))
             self.lineEdit_addpair.clear()
             logger.debug(f"Pair added: {pair}")
+            # Restart worker to include the new pair
+            self.restart_worker()
 
     def export_marketdata_to_csv(self):
         model = self.tableView_marketdata.model()
@@ -186,11 +186,23 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         logger.debug("Worker restarted with updated pairs")
 
     def closeEvent(self, event):
-        self.worker.stop()
-        self.worker.wait()
-        self.balance_worker.quit()
-        self.balance_worker.wait()
-        event.accept()
+        try:
+            # Hentikan QThreadWorker
+            if hasattr(self, 'worker') and self.worker.isRunning():
+                self.worker.stop()
+                self.worker.wait()
+            
+            # Hentikan BalanceWorker
+            if hasattr(self, 'balance_worker') and self.balance_worker.isRunning():
+                self.balance_worker.stop()
+                self.balance_worker.wait()
+            
+            # Tutup aplikasi
+            event.accept()
+            logger.info("Application closed cleanly")
+        except Exception as e:
+            logger.error(f"Error during closeEvent: {e}")
+            event.ignore()
 
 if __name__ == "__main__":
     app = qasync.QApplication(sys.argv)
