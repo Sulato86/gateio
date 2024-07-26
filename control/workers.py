@@ -1,31 +1,13 @@
 import asyncio
 import pandas as pd
-import logging
 from aiohttp import ClientSession
 from datetime import datetime
 from PyQt5.QtCore import QThread, pyqtSignal
-from api.api_gateio import GateioAPI  # Memastikan import kelas GateioAPI benar
+from api.api_gateio import GateioAPI
+from control.logging_config import setup_logging  # Import setup_logging
 
 # Konfigurasi logging
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
-
-# Handler untuk logging ke file
-file_handler = logging.FileHandler('workers.log')
-file_handler.setLevel(logging.DEBUG)
-
-# Handler untuk logging ke console
-console_handler = logging.StreamHandler()
-console_handler.setLevel(logging.DEBUG)
-
-# Format logging
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-file_handler.setFormatter(formatter)
-console_handler.setFormatter(formatter)
-
-# Menambahkan handler ke logger
-logger.addHandler(file_handler)
-logger.addHandler(console_handler)
+logger = setup_logging('workers.log')
 
 class QThreadWorker(QThread):
     result_ready = pyqtSignal(pd.DataFrame)
@@ -41,9 +23,14 @@ class QThreadWorker(QThread):
         logger.debug("QThreadWorker started")
         self.loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self.loop)
-        self.loop.run_until_complete(self.fetch_data())
+        self.loop.run_until_complete(self.run_fetch_data())
         self.loop.close()
         logger.debug("QThreadWorker run method completed")
+
+    async def run_fetch_data(self):
+        while self._is_running:
+            await self.fetch_data()
+            await asyncio.sleep(10)
 
     async def fetch_data(self):
         try:
@@ -57,11 +44,12 @@ class QThreadWorker(QThread):
                         data = await self.api.async_get_ticker_info(pair, session)
                         logger.debug(f"Received data for {pair}: {data}")
                         if data:
-                            current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                            current_time = datetime.now().strftime('%d-%m-%Y %H:%M:%S')
+                            change_percentage = pd.to_numeric(data.get('change_percentage', 'N/A'), errors='coerce')
                             row_data = {
                                 "TIME": current_time,
                                 "PAIR": pair,
-                                "24H %": data.get('change_percentage', 'N/A'),
+                                "24H %": change_percentage,
                                 "PRICE": data['last'],
                                 "VOLUME": data['base_volume']
                             }
