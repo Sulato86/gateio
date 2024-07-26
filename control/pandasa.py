@@ -1,5 +1,9 @@
 import pandas as pd
-from PyQt5.QtCore import QAbstractTableModel, Qt
+from PyQt5.QtCore import QAbstractTableModel, QSortFilterProxyModel, Qt
+from control.logging_config import setup_logging  # Import setup_logging
+
+# Konfigurasi logging
+logger = setup_logging('pandasa.log')
 
 class PandasModel(QAbstractTableModel):
     def __init__(self, data):
@@ -40,3 +44,22 @@ class PandasModel(QAbstractTableModel):
         self.layoutAboutToBeChanged.emit()
         self._data = data
         self.layoutChanged.emit()
+
+class CustomSortFilterProxyModel(QSortFilterProxyModel):
+    def lessThan(self, left, right):
+        left_data = self.sourceModel().data(left, Qt.DisplayRole)
+        right_data = self.sourceModel().data(right, Qt.DisplayRole)
+        
+        column = left.column()
+        pair_column_index = 1
+        
+        if column == pair_column_index:
+            return left_data < right_data
+        else:
+            try:
+                left_data = float(left_data)
+                right_data = float(right_data)
+            except ValueError:
+                return left_data < right_data
+            
+            return left_data < right_data

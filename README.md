@@ -1,33 +1,24 @@
 # trading-crypto
  untuk trading crypto dengan HTTP API
 
-# sulato-trade
- untuk trading ke beberapa exchanger menggunakan HTTP API
-
 ### Struktur
-project_root/
+crypto-trading-app/
 │
-├── 
-│   
-│
-├── 
-│   
-│
-├── ui/
-│   ├── main_window.ui
-│   └── ui_main_window.py
+├── controller/
+│   ├── csv_handler.py
+│   ├── pandasa.py
+│   └── workers.py
 │
 ├── api/
 │   └── api_gateio.py
 │
+├── ui/
+│   └── ui_main_window.py
 │
-│
-├── tanalysis/
-│   
-│
+├── .env
 ├── main.py
-└── requirements.txt
-
+├── requirements.txt
+└── README.md
 
 # api_gateio.py
     - get_all_symbols: Mengambil semua simbol pasangan mata uang dari API.
@@ -65,7 +56,6 @@ project_root/
         run: Mengambil saldo akun dari API dan mengirim hasilnya melalui sinyal balance_signal
 
 # main_window.py
-
     - Kelas CustomSortFilterProxyModel:
     Kelas ini mengatur cara penyortiran data pada tabel. Ini memungkinkan penyortiran khusus berdasarkan tipe data di setiap kolom.
 
@@ -94,10 +84,22 @@ project_root/
         - Mengiterasi baris data dalam model, menulis setiap baris ke file CSV, dan memperbarui sinyal kemajuan.
         - Mengirim sinyal finished dengan pesan sukses atau gagal tergantung hasil proses ekspor.
 
-# Kesimpulan
-    - workers.py bertanggung jawab untuk mengambil data dari API Gate.io dan memancarkan sinyal dengan DataFrame hasil pengambilan data.
-    - main_window.py menangani sinyal tersebut, memperbarui data di PandasModel, dan memastikan tampilan GUI diperbarui dengan data terbaru.
-    - pandasa.py mengelola tampilan data dalam tabel GUI menggunakan PandasModel.
+# Keterkaitan Antar Bagian:
+Interaksi dengan API Gate.io:
+    - api/api_gateio.py menyediakan metode untuk berinteraksi dengan API Gate.io.
+    - controller/workers.py menggunakan kelas GateioAPI untuk mengambil data dari API Gate.io.
+
+Pembaruan Data di Tabel PyQt:
+    - controller/pandasa.py menyediakan model tabel PandasModel yang digunakan untuk menampilkan data di GUI.
+    - controller/workers.py memperbarui model tabel dengan data yang diambil dari API Gate.io.
+
+Ekspor Data ke CSV:
+    - controller/csv_handler.py menyediakan ExportWorker untuk mengekspor data dari model tabel ke file CSV.
+    - MainWindow menghubungkan tombol ekspor di GUI dengan ExportWorker.
+
+Antarmuka Pengguna:
+    - ui/ui_main_window.py mendefinisikan antarmuka pengguna utama.
+    - MainWindow mengatur model tabel, memulai pekerja untuk mengambil data, dan menangani interaksi pengguna.
 
 ======================Designer=================
 pyuic5 -o ui/ui_main_window.py ui/main_window.ui

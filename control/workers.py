@@ -4,6 +4,10 @@ from aiohttp import ClientSession
 from datetime import datetime
 from PyQt5.QtCore import QThread, pyqtSignal
 from api.api_gateio import GateioAPI
+from control.logging_config import setup_logging  # Import setup_logging
+
+# Konfigurasi logging
+logger = setup_logging('workers.log')
 
 class QThreadWorker(QThread):
     result_ready = pyqtSignal(pd.DataFrame)
@@ -13,12 +17,15 @@ class QThreadWorker(QThread):
         self.pairs = pairs
         self.api = GateioAPI(api_key, api_secret)
         self._is_running = True
+        logger.debug("QThreadWorker initialized with pairs: %s", pairs)
 
     def run(self):
+        logger.debug("QThreadWorker started")
         self.loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self.loop)
         self.loop.run_until_complete(self.run_fetch_data())
         self.loop.close()
+        logger.debug("QThreadWorker run method completed")
 
     async def run_fetch_data(self):
         while self._is_running:
@@ -31,9 +38,11 @@ class QThreadWorker(QThread):
             async with ClientSession() as session:
                 for pair in self.pairs:
                     if not self._is_running:
+                        logger.debug("QThreadWorker stopped")
                         break
                     try:
                         data = await self.api.async_get_ticker_info(pair, session)
+                        logger.debug(f"Received data for {pair}: {data}")
                         if data:
                             current_time = datetime.now().strftime('%d-%m-%Y %H:%M:%S')
                             change_percentage = pd.to_numeric(data.get('change_percentage', 'N/A'), errors='coerce')
@@ -45,16 +54,19 @@ class QThreadWorker(QThread):
                                 "VOLUME": data['base_volume']
                             }
                             rows.append(row_data)
+                            logger.debug(f"Fetched data for {pair}: {row_data}")
                     except Exception as e:
-                        pass
+                        logger.error(f"Error fetching data for {pair}: {e}")
             if rows:
                 data_frame = pd.DataFrame(rows)
                 self.result_ready.emit(data_frame)
+                logger.debug("Data frame emitted")
         except Exception as e:
-            pass
+            logger.error(f"Error in fetch_data: {e}")
 
     def stop(self):
         self._is_running = False
+        logger.debug("QThreadWorker stopping")
 
 class BalanceWorker(QThread):
     balance_signal = pyqtSignal(dict)
@@ -67,5 +79,6 @@ class BalanceWorker(QThread):
         try:
             balance = self.api.get_account_balance()
             self.balance_signal.emit(balance)
+            logger.debug("Balance fetched and signal emitted")
         except Exception as e:
-            pass
+            logger.error(f"Error fetching balance: {e}")

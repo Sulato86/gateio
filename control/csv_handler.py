@@ -1,5 +1,9 @@
 import csv
 from PyQt5.QtCore import QThread, pyqtSignal, Qt
+from control.logging_config import setup_logging  # Import setup_logging
+
+# Konfigurasi logging
+logger = setup_logging('csv_handler.log')
 
 class ExportWorker(QThread):
     progress = pyqtSignal(int)
