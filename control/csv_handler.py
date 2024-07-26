@@ -1,5 +1,6 @@
 import csv
 from PyQt5.QtCore import QThread, pyqtSignal, Qt
+import pandas as pd
 from control.logging_config import setup_logging  # Import setup_logging
 
 # Konfigurasi logging
@@ -28,3 +29,21 @@ class ExportWorker(QThread):
             self.finished.emit(f"Data berhasil diekspor ke {self.filePath}")
         except Exception as e:
             self.finished.emit(f"Ekspor gagal: {str(e)}")
+
+def import_pairs_from_csv(file_path):
+    try:
+        # Baca file CSV
+        df = pd.read_csv(file_path)
+        
+        # Cek apakah kolom 'PAIR' ada
+        if 'PAIR' in df.columns:
+            imported_pairs = df['PAIR'].tolist()
+        else:
+            # Jika kolom 'PAIR' tidak ada, tampilkan pesan error
+            raise ValueError("CSV file does not contain a 'PAIR' column.")
+        
+        logger.debug(f"Imported pairs: {imported_pairs}")
+        return imported_pairs
+    except Exception as e:
+        logger.error(f"Error importing pairs from CSV: {e}")
+        raise e

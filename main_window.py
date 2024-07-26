@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 from api.api_gateio import GateioAPI
 from control.pandasa import PandasModel, CustomSortFilterProxyModel
 from control.workers import QThreadWorker, BalanceWorker
-from control.csv_handler import ExportWorker
+from control.csv_handler import ExportWorker, import_pairs_from_csv
 from control.logging_config import setup_logging  # Import setup_logging
 from ui.ui_main_window import Ui_MainWindow
 
@@ -138,23 +138,15 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         options = QFileDialog.Options()
         filePath, _ = QFileDialog.getOpenFileName(self, "Import CSV", "", "CSV Files (*.csv);;All Files (*)", options=options)
         if filePath:
-            self.import_pairs_from_csv(filePath)
+            self.handle_import_csv(filePath)
 
-    def import_pairs_from_csv(self, file_path):
+    def handle_import_csv(self, file_path):
         try:
-            # Baca file CSV
-            df = pd.read_csv(file_path)
-            
-            # Cek apakah kolom 'PAIR' ada
-            if 'PAIR' in df.columns:
-                imported_pairs = df['PAIR'].tolist()
-            else:
-                # Jika kolom 'PAIR' tidak ada, tampilkan pesan error
-                raise ValueError("CSV file does not contain a 'pairs' column.")
+            # Gunakan fungsi impor dari csv_handler
+            imported_pairs = import_pairs_from_csv(file_path)
             
             # Perbarui self.pairs dengan data yang diimpor
             self.pairs = imported_pairs
-            logger.debug(f"Imported pairs: {self.pairs}")
             
             # Perbarui tampilan data pasar dengan pasangan baru
             self.update_market_data_with_new_pairs()
@@ -166,7 +158,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         except Exception as e:
             logger.error(f"Error importing pairs from CSV: {e}")
             QMessageBox.critical(self, "Import Error", str(e))
-
 
     def update_market_data_with_new_pairs(self):
         # Bersihkan data sebelumnya
