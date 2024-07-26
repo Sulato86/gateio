@@ -30,74 +30,69 @@ project_root/
 
 
 # api_gateio.py
-    Imports dan Konfigurasi Awal:
-    - Menggunakan os, asyncio, logging, ClientSession, dan ClientError dari aiohttp, serta dotenv untuk memuat variabel lingkungan.
-    - Menggunakan gate_api untuk mengakses API Gate.io, termasuk SpotApi, Configuration, ApiClient, dan ApiException.
-
-    Inisialisasi GateioAPI:
-    - Kelas GateioAPI menginisialisasi dengan api_key dan secret_key dari environment variables.
-    - Mengonfigurasi ApiClient dan SpotApi dari gate_api.
-    - Menambahkan konfigurasi rate_limit untuk membatasi jumlah permintaan per detik.
-    - Logging untuk mencatat inisialisasi dan kesalahan.
-
-    Metode get_all_symbols:
-    - Mengambil semua pasangan mata uang kripto yang tersedia dari API Gate.io.
-    - Menangani pengecualian ApiException dan mencatat kesalahan jika terjadi.
-
-    Metode async_get_ticker_info:
-    - Metode asinkron untuk mendapatkan informasi ticker dari API Gate.io menggunakan ClientSession.
-    - Menangani permintaan dan menangani pengecualian jika terjadi kesalahan.
-
-    Potensi masalah yang perlu diperhatikan:
-    - Tangani pengecualian dan kesalahan jaringan dengan baik untuk menghindari kegagalan aplikasi.
+    - get_all_symbols: Mengambil semua simbol pasangan mata uang dari API.
+    - rate_limited_fetch: Mengambil data dari URL dengan pembatasan laju permintaan.
+    - async_get_ticker_info: Mengambil informasi ticker untuk simbol tertentu secara asinkron.
+    - get_account_balance: Mengambil saldo akun dari API.
+    - get_open_orders: Mengambil pesanan terbuka untuk simbol tertentu dari API.
+    - get_closed_orders: Mengambil pesanan yang telah selesai untuk simbol tertentu dari API.
+    - get_server_time: Mengambil waktu server dari API.
+    - create_order: Membuat pesanan baru dengan parameter tertentu.
+    - cancel_order: Membatalkan pesanan berdasarkan ID pesanan dan simbol.
+    - get_trade_history: Mengambil riwayat perdagangan untuk simbol tertentu dari API.
+    - fetch_tickers_for_symbols: Mengambil informasi ticker untuk beberapa simbol secara asinkron menggunakan async_get_ticker_info.
 
 # pandasa.py
-    Imports dan Konfigurasi Awal:
-    - Menggunakan logging untuk mencatat log dan pandas untuk pengolahan data.
-    - Mengimpor QAbstractTableModel dan Qt dari PyQt5.QtCore.
-
-    Inisialisasi Logging:
-    - Menyiapkan konfigurasi logging untuk mencatat ke file (pandas.log) dan ke console
-
     Kelas PandasModel:
-    Subclass dari QAbstractTableModel.
-    - Metode __init__: Menginisialisasi dengan data yang diberikan dan mencatat inisialisasi.
-    - Metode rowCount: Mengembalikan jumlah baris data.
-    - Metode columnCount: Mengembalikan jumlah kolom data.
-    - Metode data: Mengembalikan data untuk tampilan tabel berdasarkan indeks dan peran yang diberikan.
-    - Mengembalikan nilai sebagai string dan menangani nilai NaN.
-    - Metode headerData: Mengembalikan data header untuk kolom dan baris.
-    - Metode sort: Mengurutkan data berdasarkan kolom yang ditentukan dan mencatat sebelum dan sesudah pengurutan (menampilkan 10 baris pertama sebelum sorting).
-    
-    Potensi masalah yang perlu diperhatikan:
-    - Pastikan data yang diteruskan ke PandasModel valid dan tidak kosong.
-    - Tangani perubahan data secara efisien untuk menghindari masalah kinerja pada tabel besar.
+        __init__: Inisialisasi instance model dengan data yang diberikan dalam bentuk DataFrame.
+        rowCount: Mengembalikan jumlah baris dalam DataFrame.
+        columnCount: Mengembalikan jumlah kolom dalam DataFrame.
+        data: Mengambil data dari DataFrame untuk ditampilkan di tabel. Mengembalikan nilai sebagai string, dan mengembalikan string kosong jika nilai adalah NaN.
+        headerData: Mengambil data header untuk kolom dan baris. Mengembalikan nama kolom untuk header horizontal dan indeks baris untuk header vertikal.
+        sort: Mengurutkan data berdasarkan kolom yang dipilih. Mengubah layout sebelum dan sesudah pengurutan untuk memperbarui tampilan tabel.
+        update_data: Memperbarui data dalam model dengan DataFrame baru. Mengubah layout sebelum dan sesudah pembaruan untuk memperbarui tampilan tabel.
 
 # workers.py
-    Imports dan Konfigurasi Awal:
-    - Menggunakan asyncio, pandas, logging, ClientSession dari aiohttp, datetime, QThread, dan pyqtSignal dari PyQt5.QtCore.
-    - Mengimpor GateioAPI dari api.api_gateio.
-
-    Inisialisasi Logging:
-    - Menyiapkan konfigurasi logging untuk mencatat ke file (workers.log) dan ke console.
-
     Kelas QThreadWorker:
-    - Subclass dari QThread.
-    - Sinyal result_ready: Sinyal yang akan mengirimkan DataFrame Pandas saat data sudah siap.
-    - Metode __init__: Menginisialisasi dengan daftar pasangan mata uang dan kunci API. Membuat instance GateioAPI.
-    - Metode run: Memulai event loop asinkron untuk mendapatkan data pasar.
-    - Metode fetch_data: Metode asinkron untuk mengambil data dari API Gate.io untuk setiap pasangan mata uang.
-    - Menggunakan ClientSession untuk membuat permintaan HTTP.
-    - Memproses data yang diterima dan mencatatnya.
+        __init__: Menginisialisasi instance dengan daftar pasangan mata uang dan kunci API.
+        run: Menjalankan loop event asinkron untuk mengambil data secara periodik.
+        run_fetch_data: Fungsi asinkron yang terus mengambil data setiap 10 detik.
+        fetch_data: Mengambil data ticker untuk setiap pasangan mata uang dan mengirim hasilnya melalui sinyal result_ready.
+        stop: Menghentikan loop pengambilan data.
 
     Kelas BalanceWorker:
-    - Kelas ini belum terlihat dalam bagian kode yang dibaca. Namun, asumsi dari penggunaan di main_window.py, kelas ini kemungkinan besar mirip dengan QThreadWorker tetapi fokus pada mendapatkan saldo akun.
-
-    Potensi masalah yang perlu diperhatikan:
-    - Pastikan event loop asinkron dikelola dengan benar untuk menghindari kebocoran memori atau thread yang tidak berhenti.
-    - Tangani pengecualian jaringan dengan baik untuk menghindari kegagalan aplikasi.
+        __init__: Menginisialisasi instance dengan kunci API.
+        run: Mengambil saldo akun dari API dan mengirim hasilnya melalui sinyal balance_signal
 
 # main_window.py
+
+    - Kelas CustomSortFilterProxyModel:
+    Kelas ini mengatur cara penyortiran data pada tabel. Ini memungkinkan penyortiran khusus berdasarkan tipe data di setiap kolom.
+
+    - Kelas MainWindow:
+    __init__: Inisialisasi komponen GUI, API Gate.io, dan data yang akan ditampilkan di tabel.
+        - Inisialisasi API menggunakan kunci API dan rahasia dari variabel lingkungan.
+        - Inisialisasi pasangan mata uang yang akan ditampilkan.
+        - Mengatur model data untuk tampilan pasar dan akun.
+        - Menghubungkan sinyal dan slot untuk pembaruan data dan tindakan pengguna.
+    update_model_market: Memperbarui model data pasar dengan data baru yang diterima.
+    update_model_account: Memperbarui model data akun dengan data baru yang diterima.
+    update_balance: Memperbarui saldo akun dengan data baru yang diterima.
+    add_pair: Menambahkan pasangan mata uang baru ke dalam daftar dan memperbarui tampilan.
+    export_marketdata_to_csv: Mengekspor data pasar ke file CSV.
+    on_export_finished: Menampilkan pesan setelah ekspor selesai.
+    closeEvent: Menghentikan worker thread saat aplikasi ditutup.
+
+# csv_handler.py
+    Kelas ExportWorker:
+    progress: Sinyal yang digunakan untuk mengirim kemajuan ekspor dalam bentuk persentase.
+    finished: Sinyal yang digunakan untuk mengirim pesan ketika proses ekspor selesai atau gagal.
+    __init__: Inisialisasi instance dengan model data dan path file tujuan ekspor.
+    run: Metode utama yang dijalankan saat thread dimulai.
+        - Membuka file CSV untuk menulis.
+        - Menulis header kolom berdasarkan data dari model.
+        - Mengiterasi baris data dalam model, menulis setiap baris ke file CSV, dan memperbarui sinyal kemajuan.
+        - Mengirim sinyal finished dengan pesan sukses atau gagal tergantung hasil proses ekspor.
 
 # Kesimpulan
     - workers.py bertanggung jawab untuk mengambil data dari API Gate.io dan memancarkan sinyal dengan DataFrame hasil pengambilan data.
