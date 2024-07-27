@@ -240,17 +240,26 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def closeEvent(self, event):
         try:
+            logger.debug("closeEvent triggered")
+            
             # Hentikan QThreadWorker
-            if hasattr(self, 'worker') and self.worker.isRunning():
+            if hasattr(self, 'worker'):
+                logger.debug("Stopping QThreadWorker")
                 self.worker.stop()
-                self.worker.wait()
+                if not self.worker.wait(5000):  # Tunggu maksimal 5 detik
+                    logger.debug("QThreadWorker not stopping, terminating")
+                    self.worker.terminate()
             
             # Hentikan BalanceWorker
-            if hasattr(self, 'balance_worker') and self.balance_worker.isRunning():
+            if hasattr(self, 'balance_worker'):
+                logger.debug("Stopping BalanceWorker")
                 self.balance_worker.stop()
-                self.balance_worker.wait()
-            
+                if not self.balance_worker.wait(5000):  # Tunggu maksimal 5 detik
+                    logger.debug("BalanceWorker not stopping, terminating")
+                    self.balance_worker.terminate()
+
             # Tutup aplikasi
+            logger.debug("Closing application")
             event.accept()
             logger.info("Application closed cleanly")
         except Exception as e:

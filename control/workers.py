@@ -11,9 +11,9 @@ logger = setup_logging('workers.log')
 
 class QThreadWorker(QThread):
     result_ready = pyqtSignal(pd.DataFrame)
-    price_check_signal = pyqtSignal(dict)  # Signal baru untuk memeriksa harga notifikasi
-    export_complete_signal = pyqtSignal()  # Signal untuk ekspor data selesai
-    import_complete_signal = pyqtSignal(pd.DataFrame)  # Signal untuk impor data selesai
+    price_check_signal = pyqtSignal(dict)
+    export_complete_signal = pyqtSignal()
+    import_complete_signal = pyqtSignal(pd.DataFrame)
 
     def __init__(self, pairs, api_key, api_secret):
         super(QThreadWorker, self).__init__()
@@ -35,7 +35,10 @@ class QThreadWorker(QThread):
     async def run_fetch_data(self):
         while self._is_running:
             await self.fetch_data()
-            await asyncio.sleep(10)
+            for _ in range(10):  # Cek setiap detik untuk lebih responsif
+                if not self._is_running:
+                    return
+                await asyncio.sleep(1)
 
     async def fetch_data(self):
         try:
@@ -46,28 +49,22 @@ class QThreadWorker(QThread):
                         logger.debug("QThreadWorker stopped")
                         break
                     try:
-                        data = await self.api.async_get_ticker_info(pair, session)
+                        data = await asyncio.wait_for(self.api.async_get_ticker_info(pair, session), timeout=5)
                         logger.debug(f"Received data for {pair}: {data}")
                         if data:
                             current_time = datetime.now().strftime('%d-%m-%Y %H:%M:%S')
-                            change_percentage = pd.to_numeric(data.get('change_percentage', 'N/A'), errors='coerce')
-                            row_data = {
+                            rows.append({
                                 "TIME": current_time,
                                 "PAIR": pair,
-                                "24H %": change_percentage,
+                                "24H %": data['change_percentage'],
                                 "PRICE": data['last'],
                                 "VOLUME": data['base_volume']
-                            }
-                            rows.append(row_data)
-                            logger.debug(f"Fetched data for {pair}: {row_data}")
-                            # Emit signal for price check
-                            self.price_check_signal.emit({"pair": pair, "price": data['last']})
-                    except Exception as e:
-                        logger.error(f"Error fetching data for {pair}: {e}")
+                            })
+                    except asyncio.TimeoutError:
+                        logger.debug(f"Timeout fetching data for {pair}")
             if rows:
-                data_frame = pd.DataFrame(rows)
-                self.result_ready.emit(data_frame)
-                logger.debug("Data frame emitted")
+                df = pd.DataFrame(rows)
+                self.result_ready.emit(df)
         except Exception as e:
             logger.error(f"Error in fetch_data: {e}")
 
@@ -75,7 +72,10 @@ class QThreadWorker(QThread):
         self._is_running = False
         logger.debug("QThreadWorker stopping")
         self.quit()
-        self.wait()
+        if not self.wait(5000):  # Tunggu maksimal 5 detik
+            logger.debug("QThreadWorker not stopping, terminating")
+            self.terminate()
+
 
     # Fungsi Ekspor Data
     def export_data(self, data_frame, file_path):
@@ -111,14 +111,25 @@ class BalanceWorker(QThread):
                 balance = self.api.get_account_balance()
                 self.balance_signal.emit(balance)
                 logger.debug("Balance fetched and signal emitted")
-                # Sleep for a specified interval before fetching the balance again
-                QThread.sleep(60)
+                # Tidur selama interval yang lebih pendek dan cek status lebih sering
+                for _ in range(60):
+                    if not self._is_running:
+                        logger.debug("BalanceWorker stopping in loop")
+                        return
+                    QThread.sleep(1)
             except Exception as e:
                 logger.error(f"Error fetching balance: {e}")
                 self._is_running = False
+        logger.debug("BalanceWorker run method completed")
 
     def stop(self):
         self._is_running = False
         logger.debug("BalanceWorker stopping")
         self.quit()
-        self.wait()
+        if not self.wait(5000):  # Tunggu maksimal 5 detik
+            logger.debug("BalanceWorker not stopping, terminating")
+            self.terminate()
+
+
+
+
