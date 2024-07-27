@@ -84,22 +84,30 @@ crypto-trading-app/
         - Mengiterasi baris data dalam model, menulis setiap baris ke file CSV, dan memperbarui sinyal kemajuan.
         - Mengirim sinyal finished dengan pesan sukses atau gagal tergantung hasil proses ekspor.
 
-# Keterkaitan Antar Bagian:
-Interaksi dengan API Gate.io:
-    - api/api_gateio.py menyediakan metode untuk berinteraksi dengan API Gate.io.
-    - controller/workers.py menggunakan kelas GateioAPI untuk mengambil data dari API Gate.io.
+# Tugas dan Fungsi Kode yang Berkaitan dengan Lainnya:
+    - main_window.py: Ini adalah file utama yang mengelola antarmuka pengguna (GUI) dan mengintegrasikan berbagai komponen seperti pengolahan data, pekerja latar belakang (workers), dan API Gate.io.
+    - workers.py: Mengandung kelas QThreadWorker untuk mengambil data ticker dari API dan BalanceWorker untuk mengambil saldo akun. Kedua kelas ini menggunakan threading untuk menjalankan tugas asinkron secara paralel.
+    - pandasa.py: Menyediakan model data untuk tabel yang ditampilkan di GUI. PandasModel mengubah DataFrame menjadi model tabel yang dapat digunakan oleh PyQt, dan CustomSortFilterProxyModel memungkinkan penyortiran dan pemfilteran data.
+    - csv_handler.py: Mengelola impor dan ekspor data dari dan ke file CSV. Mengandung pekerja latar belakang (ExportWorker dan ExportNotifPriceWorker) untuk menangani operasi ini tanpa mengunci GUI.
+    - api_gateio.py: Menyediakan fungsi untuk berinteraksi dengan API Gate.io, termasuk mengambil simbol, saldo akun, pesanan terbuka, pesanan tertutup, waktu server, dan riwayat perdagangan.
 
-Pembaruan Data di Tabel PyQt:
-    - controller/pandasa.py menyediakan model tabel PandasModel yang digunakan untuk menampilkan data di GUI.
-    - controller/workers.py memperbarui model tabel dengan data yang diambil dari API Gate.io.
+# Optimasi untuk Tiap Kode:
+    - main_window.py:
+        - Memastikan penggunaan thread worker yang efisien dengan memeriksa status thread sebelum memulai yang baru.
+        - Memastikan pembaruan model tabel hanya ketika data baru tersedia untuk mengurangi beban pada GUI.
 
-Ekspor Data ke CSV:
-    - controller/csv_handler.py menyediakan ExportWorker untuk mengekspor data dari model tabel ke file CSV.
-    - MainWindow menghubungkan tombol ekspor di GUI dengan ExportWorker.
+    - workers.py:
+        - Menggunakan asyncio dan aiohttp untuk mengambil data secara efisien dan mengurangi latensi jaringan.
+        - Menambahkan pengecekan status yang lebih sering untuk menghentikan thread dengan cepat jika diperlukan.
 
-Antarmuka Pengguna:
-    - ui/ui_main_window.py mendefinisikan antarmuka pengguna utama.
-    - MainWindow mengatur model tabel, memulai pekerja untuk mengambil data, dan menangani interaksi pengguna.
+    - pandasa.py:
+        - Menambahkan caching untuk hasil penyortiran dan pemfilteran jika data tidak berubah untuk meningkatkan kinerja.
+
+    - csv_handler.py:
+        - Menggunakan metode batch untuk membaca dan menulis file CSV jika dataset sangat besar untuk mengurangi penggunaan memori.
+
+    - api_gateio.py:
+        - Mengimplementasikan retry mechanism untuk permintaan API yang gagal karena masalah jaringan sementara.
 
 ======================Designer=================
 pyuic5 -o ui/ui_main_window.py ui/main_window.ui

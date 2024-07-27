@@ -4,7 +4,7 @@ from aiohttp import ClientSession
 from datetime import datetime
 from PyQt5.QtCore import QThread, pyqtSignal
 from api.api_gateio import GateioAPI
-from control.logging_config import setup_logging  # Import setup_logging
+from control.logging_config import setup_logging
 
 # Konfigurasi logging
 logger = setup_logging('workers.log')
@@ -16,7 +16,7 @@ class QThreadWorker(QThread):
     import_complete_signal = pyqtSignal(pd.DataFrame)
 
     def __init__(self, pairs, api_key, api_secret):
-        super(QThreadWorker, self).__init__()
+        super().__init__()
         self.pairs = pairs
         self.api = GateioAPI(api_key, api_secret)
         self._is_running = True
@@ -76,8 +76,6 @@ class QThreadWorker(QThread):
             logger.debug("QThreadWorker not stopping, terminating")
             self.terminate()
 
-
-    # Fungsi Ekspor Data
     def export_data(self, data_frame, file_path):
         try:
             data_frame.to_csv(file_path, index=False)
@@ -86,7 +84,6 @@ class QThreadWorker(QThread):
         except Exception as e:
             logger.error(f"Error exporting data: {e}")
 
-    # Fungsi Impor Data
     def import_data(self, file_path):
         try:
             data_frame = pd.read_csv(file_path)
@@ -99,7 +96,7 @@ class BalanceWorker(QThread):
     balance_signal = pyqtSignal(dict)
 
     def __init__(self, api_key, api_secret):
-        super(BalanceWorker, self).__init__()
+        super().__init__()
         self.api = GateioAPI(api_key, api_secret)
         self._is_running = True
         logger.debug("BalanceWorker initialized")
@@ -111,7 +108,6 @@ class BalanceWorker(QThread):
                 balance = self.api.get_account_balance()
                 self.balance_signal.emit(balance)
                 logger.debug("Balance fetched and signal emitted")
-                # Tidur selama interval yang lebih pendek dan cek status lebih sering
                 for _ in range(60):
                     if not self._is_running:
                         logger.debug("BalanceWorker stopping in loop")
@@ -129,7 +125,3 @@ class BalanceWorker(QThread):
         if not self.wait(5000):  # Tunggu maksimal 5 detik
             logger.debug("BalanceWorker not stopping, terminating")
             self.terminate()
-
-
-
-

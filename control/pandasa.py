@@ -1,13 +1,13 @@
 import pandas as pd
 from PyQt5.QtCore import QAbstractTableModel, QSortFilterProxyModel, Qt
-from control.logging_config import setup_logging  # Import setup_logging
+from control.logging_config import setup_logging
 
 # Konfigurasi logging
 logger = setup_logging('pandasa.log')
 
 class PandasModel(QAbstractTableModel):
     def __init__(self, data):
-        super(PandasModel, self).__init__()
+        super().__init__()
         self._data = data
 
     def rowCount(self, parent=None):
@@ -26,7 +26,7 @@ class PandasModel(QAbstractTableModel):
             return str(value)
         return None
 
-    def headerData(self, section, orientation, role=Qt.DisplayRole):  # Menambahkan nilai default untuk role
+    def headerData(self, section, orientation, role=Qt.DisplayRole):
         if role != Qt.DisplayRole:
             return None
         if orientation == Qt.Horizontal:
@@ -52,7 +52,6 @@ class CustomSortFilterProxyModel(QSortFilterProxyModel):
     def lessThan(self, left, right):
         left_data = self.sourceModel().data(left, Qt.DisplayRole)
         right_data = self.sourceModel().data(right, Qt.DisplayRole)
-        
         column = left.column()
         pair_column_index = 1
         
@@ -73,5 +72,4 @@ class CustomSortFilterProxyModel(QSortFilterProxyModel):
                 return result
 
     def filterAcceptsRow(self, source_row, source_parent):
-        # You can implement custom filtering logic here if needed
         return super().filterAcceptsRow(source_row, source_parent)

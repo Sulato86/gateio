@@ -2,7 +2,7 @@ import csv
 from PyQt5.QtCore import QThread, pyqtSignal, Qt
 from PyQt5.QtWidgets import QFileDialog, QMessageBox, QProgressDialog
 import pandas as pd
-from control.logging_config import setup_logging  # Import setup_logging
+from control.logging_config import setup_logging
 
 # Konfigurasi logging
 logger = setup_logging('csv_handler.log')
@@ -37,40 +37,6 @@ class ExportWorker(QThread):
             self.finished.emit(error_message)
             logger.error(error_message)
 
-def import_pairs_from_csv(file_path):
-    try:
-        # Baca file CSV
-        df = pd.read_csv(file_path)
-        
-        # Cek apakah kolom 'PAIR' ada
-        if 'PAIR' in df.columns:
-            imported_pairs = df['PAIR'].tolist()
-            logger.debug(f"Imported pairs: {imported_pairs}")
-            return imported_pairs
-        else:
-            # Jika kolom 'PAIR' tidak ada, tampilkan pesan error
-            raise ValueError("CSV file does not contain a 'PAIR' column.")
-    except Exception as e:
-        logger.error(f"Error importing pairs from CSV: {e}")
-        raise e
-
-def import_notifprice_from_csv(file_path):
-    try:
-        # Baca file CSV
-        df = pd.read_csv(file_path)
-        
-        # Cek apakah kolom 'PAIR' dan 'PRICE' ada
-        if 'PAIR' in df.columns and 'PRICE' in df.columns:
-            imported_data = dict(zip(df['PAIR'], df['PRICE']))
-            logger.debug(f"Imported notification prices: {imported_data}")
-            return imported_data
-        else:
-            # Jika kolom 'PAIR' atau 'PRICE' tidak ada, tampilkan pesan error
-            raise ValueError("CSV file does not contain required columns 'PAIR' and 'PRICE'.")
-    except Exception as e:
-        logger.error(f"Error importing notification prices from CSV: {e}")
-        raise e
-
 class ExportNotifPriceWorker(QThread):
     progress = pyqtSignal(int)
     finished = pyqtSignal(str)
@@ -101,6 +67,32 @@ class ExportNotifPriceWorker(QThread):
             self.finished.emit(error_message)
             logger.error(error_message)
 
+def import_pairs_from_csv(file_path):
+    try:
+        df = pd.read_csv(file_path)
+        if 'PAIR' in df.columns:
+            imported_pairs = df['PAIR'].tolist()
+            logger.debug(f"Imported pairs: {imported_pairs}")
+            return imported_pairs
+        else:
+            raise ValueError("CSV file does not contain a 'PAIR' column.")
+    except Exception as e:
+        logger.error(f"Error importing pairs from CSV: {e}")
+        raise e
+
+def import_notifprice_from_csv(file_path):
+    try:
+        df = pd.read_csv(file_path)
+        if 'PAIR' in df.columns and 'PRICE' in df.columns:
+            imported_data = dict(zip(df['PAIR'], df['PRICE']))
+            logger.debug(f"Imported notification prices: {imported_data}")
+            return imported_data
+        else:
+            raise ValueError("CSV file does not contain required columns 'PAIR' and 'PRICE'.")
+    except Exception as e:
+        logger.error(f"Error importing notification prices from CSV: {e}")
+        raise e
+
 def export_marketdata_to_csv(tableView_marketdata):
     options = QFileDialog.Options()
     filePath, _ = QFileDialog.getSaveFileName(None, "Save CSV", "", "CSV Files (*.csv);;All Files (*)", options=options)
@@ -110,26 +102,6 @@ def export_marketdata_to_csv(tableView_marketdata):
         progress_dialog.setMinimumDuration(0)
         
         export_worker = ExportWorker(tableView_marketdata.model(), filePath)
-        export_worker.progress.connect(progress_dialog.setValue)
-        export_worker.finished.connect(lambda message: QMessageBox.information(None, "Ekspor Selesai", message))
-        export_worker.start()
-        progress_dialog.exec_()
-
-def export_notifprice_to_csv(tableView_notifprice):
-    options = QFileDialog.Options()
-    filePath, _ = QFileDialog.getSaveFileName(None, "Save CSV", "", "CSV Files (*.csv);;All Files (*)", options=options)
-    if filePath:
-        # Debugging tambahan
-        model = tableView_notifprice.model()
-        if model is None or model.rowCount() == 0:
-            QMessageBox.warning(None, "No Data", "TableView tidak memiliki data untuk diekspor.")
-            return
-        
-        progress_dialog = QProgressDialog("Mengekspor data notifikasi...", "Batal", 0, 100, None)
-        progress_dialog.setWindowModality(Qt.WindowModal)
-        progress_dialog.setMinimumDuration(0)
-        
-        export_worker = ExportNotifPriceWorker(model, filePath)
         export_worker.progress.connect(progress_dialog.setValue)
         export_worker.finished.connect(lambda message: QMessageBox.information(None, "Ekspor Selesai", message))
         export_worker.start()

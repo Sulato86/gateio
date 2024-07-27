@@ -5,7 +5,7 @@ from aiohttp import ClientSession, ClientError
 from dotenv import load_dotenv
 from gate_api import SpotApi, Configuration, ApiClient
 from gate_api.exceptions import ApiException
-from control.logging_config import setup_logging  # Import setup_logging
+from control.logging_config import setup_logging
 
 # Memuat variabel lingkungan dari file .env
 load_dotenv()
