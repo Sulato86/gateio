@@ -136,10 +136,16 @@
     <property name="title">
      <string>Menu</string>
     </property>
+    <addaction name="actionImpor_API"/>
    </widget>
    <addaction name="menuMenu"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
+  <action name="actionImpor_API">
+   <property name="text">
+    <string>Impor API</string>
+   </property>
+  </action>
  </widget>
  <resources/>
  <connections/>

@@ -4,7 +4,7 @@ import asyncio
 import pandas as pd
 import qasync
 from PyQt5 import QtCore, QtWidgets
-from PyQt5.QtWidgets import (QApplication, QMainWindow, QHeaderView, QFileDialog, QProgressDialog, QMessageBox, QTableWidgetItem, QMenu)
+from PyQt5.QtWidgets import (QApplication, QMainWindow, QHeaderView, QFileDialog, QProgressDialog, QMessageBox, QTableWidgetItem, QMenu, QDialog)
 from PyQt5.QtCore import Qt, QModelIndex, QMutex
 from dotenv import load_dotenv
 from control.csv_handler import export_marketdata_to_csv, handle_import_csv
@@ -15,8 +15,8 @@ from control.data_handler import (init_market_data_model, init_account_data_mode
                           update_model_market, update_model_account, update_balance, 
                           add_pair, update_market_data_with_new_pairs, restart_worker, close_event, 
                           delete_market_rows, delete_account_rows)
-from control.pandas_handler import AccountDataModel
-from api.api_gateio import GateioAPI
+from control.worker import Worker
+from control.login_dialog import LoginDialog
 
 # Memuat variabel lingkungan dari file .env
 load_dotenv()
@@ -31,20 +31,16 @@ logger = setup_logging('main_window.log')
 mutex = QMutex()
 
 class MainWindow(QMainWindow, Ui_MainWindow):
-    def __init__(self):
+    def __init__(self, worker):
         super().__init__()
         self.setupUi(self)
+        self.worker = worker
 
-        # Inisialisasi API Gate.io dengan API key dan secret dari environment variables
-        self.api_key = os.getenv('API_KEY')
-        self.api_secret = os.getenv('SECRET_KEY')
-        logger.debug("API keys initialized")
+        # Dapatkan instance API dari worker
+        self.api = self.worker.get_api_instance()
 
         # Inisialisasi atribut self.pairs tanpa nilai default
         self.pairs = []
-
-        # Inisialisasi worker sebagai None
-        self.worker = None
 
         # Inisialisasi DataFrame dan model untuk tableView_marketdata
         self.data_market, self.proxy_model_market = init_market_data_model()
@@ -71,16 +67,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.tableView_marketdata.setContextMenuPolicy(Qt.CustomContextMenu)
         self.tableView_marketdata.customContextMenuRequested.connect(self.show_context_menu_market)
 
-        # Hapus atau nonaktifkan menu konteks untuk tableView_accountdata
-        # self.tableView_accountdata.setContextMenuPolicy(Qt.CustomContextMenu)
-        # self.tableView_accountdata.customContextMenuRequested.connect(self.show_context_menu_account)
-
         # Inisialisasi worker
         self.init_workers()
 
     def init_workers(self):
-        # Inisialisasi workers
-        self.worker, self.balance_worker = init_workers(self.pairs, self.api_key, self.api_secret)
+        # Inisialisasi workers dengan api_key dan api_secret dari worker
+        self.worker, self.balance_worker = init_workers(self.pairs, self.api.api_key, self.api.secret_key)
         self.worker.result_ready.connect(self.update_model_market)
         self.worker.start()
         self.balance_worker.balance_signal.connect(self.update_balance)
@@ -96,7 +88,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if imported_pairs is not None:
             self.pairs = imported_pairs
             self.data_market = update_market_data_with_new_pairs(self.pairs, self.data_market, self.proxy_model_market)
-            self.worker = restart_worker(self.worker, self.pairs, self.api_key, self.api_secret, self.update_model_market)
+            self.worker = restart_worker(self.worker, self.pairs, self.api, self.update_model_market)
             QMessageBox.information(self, "Import Successful", "Pairs have been successfully imported.")
 
     def update_model_market(self, data_frame):
@@ -117,7 +109,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if pair:
             self.pairs, self.data_market = add_pair(pair, self.pairs, self.data_market, self.proxy_model_market)
             self.lineEdit_addpair.clear()
-            self.worker = restart_worker(self.worker, self.pairs, self.api_key, self.api_secret, self.update_model_market)
+            self.worker = restart_worker(self.worker, self.pairs, self.api, self.update_model_market)
 
     def show_context_menu_market(self, position):
         logger.debug("Context menu requested for market data")
@@ -163,7 +155,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 finally:
                     mutex.unlock()
                 # Mulai kembali worker setelah penghapusan
-                self.worker = restart_worker(self.worker, self.pairs, self.api_key, self.api_secret, self.update_model_market)
+                self.worker = restart_worker(self.worker, self.pairs, self.api, self.update_model_market)
 
             elif tableView == self.tableView_accountdata:
                 if self.balance_worker.isRunning():
@@ -190,7 +182,17 @@ if __name__ == "__main__":
     app = qasync.QApplication(sys.argv)
     loop = qasync.QEventLoop(app)
     asyncio.set_event_loop(loop)
-    window = MainWindow()
-    window.show()
+
+    # Inisialisasi worker
+    worker = Worker()
+
+    # Tampilkan dialog login sebelum main window
+    login_dialog = LoginDialog(worker)
+    if login_dialog.exec_() == QDialog.Accepted:
+        window = MainWindow(worker)
+        window.show()
+    else:
+        sys.exit(0)
+
     with loop:
         loop.run_forever()

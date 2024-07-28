@@ -73,7 +73,6 @@ class GateioAPI:
             logger.error(f"Error getting account balance: {e}")
             return []
 
-
     def get_open_orders(self, symbol: str) -> list:
         try:
             open_orders = self.spot_api.list_orders(currency_pair=symbol, status='open')
@@ -133,3 +132,11 @@ class GateioAPI:
         async with ClientSession() as session:
             tasks = [self.async_get_ticker_info(symbol, session) for symbol in symbols]
             return await asyncio.gather(*tasks)
+
+    def validate_credentials(self):
+        try:
+            self.spot_api.list_spot_accounts()
+            return True
+        except ApiException as e:
+            logger.error(f"Invalid API credentials: {e}")
+            return False

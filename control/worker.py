@@ -18,10 +18,10 @@ class QThreadWorker(QThread):
     export_complete_signal = pyqtSignal()
     import_complete_signal = pyqtSignal(pd.DataFrame)
 
-    def __init__(self, pairs, api_key, api_secret):
+    def __init__(self, pairs, api):
         super().__init__()
         self.pairs = pairs
-        self.api = GateioAPI(api_key, api_secret)
+        self.api = api
         self._is_running = True
         logger.debug("QThreadWorker initialized with pairs: %s", pairs)
 
@@ -102,9 +102,9 @@ class QThreadWorker(QThread):
 class BalanceWorker(QThread):
     balance_signal = pyqtSignal(list)  # Mengubah sinyal menjadi list
 
-    def __init__(self, api_key, api_secret):
+    def __init__(self, api):
         super().__init__()
-        self.api = GateioAPI(api_key, api_secret)
+        self.api = api
         self._is_running = True
         logger.debug("BalanceWorker initialized")
 
@@ -138,3 +138,17 @@ class BalanceWorker(QThread):
             logger.debug("BalanceWorker not stopping, terminating")
             self.terminate()
 
+# Tambahkan metode API handler di luar kelas QThreadWorker dan BalanceWorker
+class Worker:
+    def __init__(self):
+        self.api_instance = None
+
+    def initialize_api(self, api_key, api_secret):
+        self.api_instance = GateioAPI(api_key, api_secret)
+
+    def validate_credentials(self, api_key, api_secret):
+        temp_api = GateioAPI(api_key, api_secret)
+        return temp_api.validate_credentials()
+
+    def get_api_instance(self):
+        return self.api_instance

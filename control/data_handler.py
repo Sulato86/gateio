@@ -3,8 +3,9 @@ import pandas as pd
 from PyQt5.QtCore import Qt
 from control.pandas_handler import PandasModel, CustomSortFilterProxyModel, AccountDataModel
 from control.worker import QThreadWorker, BalanceWorker
-from control.csv_handler import handle_import_csv
+"""from control.csv_handler import handle_import_csv"""
 from control.logging_config import setup_logging
+from api.api_gateio import GateioAPI
 
 logger = setup_logging('data_handler.log')
 
@@ -23,8 +24,9 @@ def init_account_data_model():
     return data_account, proxy_model_account
 
 def init_workers(pairs, api_key, api_secret):
-    worker = QThreadWorker(pairs, api_key, api_secret)
-    balance_worker = BalanceWorker(api_key, api_secret)
+    api_instance = GateioAPI(api_key, api_secret)
+    worker = QThreadWorker(pairs, api_instance)
+    balance_worker = BalanceWorker(api_instance)
     return worker, balance_worker
 
 def update_model_market(data_frame, data_market, proxy_model_market):
@@ -73,15 +75,13 @@ def update_market_data_with_new_pairs(pairs, data_market, proxy_model_market):
     logger.debug("Market data updated with new pairs")
     return data_market
 
-def restart_worker(worker, pairs, api_key, api_secret, update_model_market):
-    if worker.isRunning():
+def restart_worker(worker, pairs, api, update_model_market_callback):
+    if worker is not None:
         worker.stop()
         worker.wait()
-
-    worker = QThreadWorker(pairs, api_key, api_secret)
-    worker.result_ready.connect(update_model_market)
+    worker = QThreadWorker(pairs, api)
+    worker.result_ready.connect(update_model_market_callback)
     worker.start()
-    logger.debug("Worker restarted with updated pairs")
     return worker
 
 def close_event(worker, balance_worker):
