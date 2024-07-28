@@ -3,7 +3,7 @@ from PyQt5.QtCore import QAbstractTableModel, QSortFilterProxyModel, Qt
 from control.logging_config import setup_logging
 
 # Konfigurasi logging
-logger = setup_logging('pandasa.log')
+logger = setup_logging('pandas_handler.py.log')
 
 class PandasModel(QAbstractTableModel):
     def __init__(self, data):
@@ -23,6 +23,9 @@ class PandasModel(QAbstractTableModel):
             value = self._data.iloc[index.row(), index.column()]
             if pd.isnull(value):
                 return ""
+            # Mengembalikan data dalam format string dengan 2 digit desimal untuk kolom "VOLUME"
+            if self._data.columns[index.column()] == "VOLUME":
+                return f"{value:.2f}"
             return str(value)
         return None
 
@@ -89,13 +92,15 @@ class CustomSortFilterProxyModel(QSortFilterProxyModel):
 
 # Fungsi inisialisasi DataFrame dan model
 def init_market_data_model():
-    data_market = pd.DataFrame(columns=['PAIR', 'PRICE', 'VOLUME'])
-    proxy_model_market = PandasModel(data_market)
+    data_market = pd.DataFrame(columns=['TIME', 'PAIR', '24H %', 'PRICE', 'VOLUME'])
+    proxy_model_market = CustomSortFilterProxyModel()
+    proxy_model_market.setSourceModel(PandasModel(data_market))
     return data_market, proxy_model_market
 
 def init_account_data_model():
-    data_account = pd.DataFrame(columns=['ACCOUNT', 'BALANCE'])
-    proxy_model_account = PandasModel(data_account)
+    data_account = pd.DataFrame(columns=['CURRENCY', 'AVAILABLE', 'LOCKED', 'TOTAL'])
+    proxy_model_account = CustomSortFilterProxyModel()
+    proxy_model_account.setSourceModel(AccountDataModel(data_account))
     return data_account, proxy_model_account
 
 # Fungsi untuk manipulasi data
@@ -116,6 +121,6 @@ class AccountDataModel(PandasModel):
     def data(self, index, role=Qt.DisplayRole):
         value = super().data(index, role)
         if role == Qt.DisplayRole and index.column() in [1, 2, 3]:
-            # Format nilai saldo dengan 2 desimal untuk kolom "available", "locked", dan "total"
+            # Format nilai saldo dengan 2 desimal untuk kolom "AVAILABLE", "LOCKED", dan "TOTAL"
             return f"{float(value):.2f}"
         return value

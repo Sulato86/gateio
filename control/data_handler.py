@@ -31,10 +31,15 @@ def init_workers(pairs, api_key, api_secret):
 
 def update_model_market(data_frame, data_market, proxy_model_market):
     logger.debug("Updating market model with new data")
+
+    if 'VOLUME' in data_frame.columns:
+        data_frame["VOLUME"] = data_frame["VOLUME"].round(2)
+
     for column in ["24H %", "PRICE", "VOLUME"]:
         data_frame[column] = data_frame[column].astype(float)
     data_market = data_frame
     proxy_model_market.setSourceModel(PandasModel(data_market))
+    proxy_model_market.layoutChanged.emit()
     return data_market
 
 def update_model_account(data_frame, data_account, proxy_model_account):

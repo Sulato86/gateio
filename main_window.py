@@ -17,6 +17,8 @@ from control.data_handler import (init_market_data_model, init_account_data_mode
                           delete_market_rows, delete_account_rows)
 from control.worker import Worker
 from control.login_dialog import LoginDialog
+from PyQt5.QtGui import QBrush, QColor, QPalette
+from PyQt5.QtWidgets import QStyledItemDelegate
 
 # Memuat variabel lingkungan dari file .env
 load_dotenv()
@@ -29,6 +31,45 @@ logger = setup_logging('main_window.log')
 
 # Inisialisasi mutex
 mutex = QMutex()
+
+class TableColorDelegate(QStyledItemDelegate):
+    def __init__(self, parent=None):
+        super(TableColorDelegate, self).__init__(parent)
+
+    def paint(self, painter, option, index):
+        self.initStyleOption(option, index)  # Menginisialisasi opsi gaya
+        
+        value = index.model().data(index, Qt.DisplayRole)
+        
+        # Asumsikan kolom '24H %' berada pada indeks 2
+        column_index = 2
+        if index.column() == column_index:
+            try:
+                value = float(value)
+            except (ValueError, AttributeError):
+                value = 0
+
+            if value < 0:
+                option.backgroundBrush = QBrush(QColor(255, 0, 0))
+                textColor = QColor(255, 255, 255)
+                print(f"Row {index.row()} is red with value {value}")
+            elif value > 0:
+                option.backgroundBrush = QBrush(QColor(0, 128, 0))
+                textColor = QColor(255, 255, 255)
+                print(f"Row {index.row()} is green with value {value}")
+            else:
+                textColor = option.palette.color(QPalette.Text)  # Default text color
+        
+            painter.save()
+            painter.fillRect(option.rect, option.backgroundBrush)  # Mengisi latar belakang
+            painter.setPen(textColor)  # Mengatur warna teks
+            
+            # Menggambar teks
+            textRect = option.rect
+            painter.drawText(textRect, Qt.AlignCenter, str(value))
+            painter.restore()
+        else:
+            super(TableColorDelegate, self).paint(painter, option, index)
 
 class MainWindow(QMainWindow, Ui_MainWindow):
     def __init__(self, worker):
@@ -50,6 +91,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.tableView_marketdata.setSortingEnabled(True)
         self.tableView_marketdata.horizontalHeader().setSortIndicatorShown(True)
         self.tableView_marketdata.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+
+        # Set delegate untuk pewarnaan baris pada tableView_marketdata
+        self.tableView_marketdata.setItemDelegate(TableColorDelegate(self.tableView_marketdata))
 
         # Inisialisasi DataFrame dan model untuk tableView_accountdata
         self.data_account, self.proxy_model_account = init_account_data_model()
