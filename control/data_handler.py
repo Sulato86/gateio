@@ -1,7 +1,7 @@
 import os
 import pandas as pd
 from PyQt5.QtCore import Qt
-from control.pandasa import PandasModel, CustomSortFilterProxyModel
+from control.pandas_handler import PandasModel, CustomSortFilterProxyModel
 from control.worker import QThreadWorker, BalanceWorker
 from control.csv_handler import handle_import_csv
 from control.logging_config import setup_logging

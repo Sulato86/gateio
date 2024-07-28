@@ -86,3 +86,25 @@ class CustomSortFilterProxyModel(QSortFilterProxyModel):
 
     def filterAcceptsRow(self, source_row, source_parent):
         return super().filterAcceptsRow(source_row, source_parent)
+
+# Fungsi inisialisasi DataFrame dan model
+def init_market_data_model():
+    data_market = pd.DataFrame(columns=['PAIR', 'PRICE', 'VOLUME'])
+    proxy_model_market = PandasModel(data_market)
+    return data_market, proxy_model_market
+
+def init_account_data_model():
+    data_account = pd.DataFrame(columns=['ACCOUNT', 'BALANCE'])
+    proxy_model_account = PandasModel(data_account)
+    return data_account, proxy_model_account
+
+# Fungsi untuk manipulasi data
+def delete_market_rows(indices, data_market, proxy_model_market):
+    data_market = data_market.drop(indices).reset_index(drop=True)
+    proxy_model_market.update_data(data_market)
+    return data_market
+
+def delete_account_rows(indices, data_account, proxy_model_account):
+    data_account = data_account.drop(indices).reset_index(drop=True)
+    proxy_model_account.update_data(data_account)
+    return data_account

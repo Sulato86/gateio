@@ -15,7 +15,7 @@ from control.data_handler import (init_market_data_model, init_account_data_mode
                           update_model_market, update_model_account, update_balance, 
                           add_pair, update_market_data_with_new_pairs, restart_worker, close_event, 
                           delete_market_rows, delete_account_rows)
-from control.pandasa import PandasModel
+from api.api_gateio import GateioAPI
 
 # Memuat variabel lingkungan dari file .env
 load_dotenv()
