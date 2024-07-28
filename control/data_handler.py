@@ -1,7 +1,7 @@
 import os
 import pandas as pd
 from PyQt5.QtCore import Qt
-from control.pandas_handler import PandasModel, CustomSortFilterProxyModel
+from control.pandas_handler import PandasModel, CustomSortFilterProxyModel, AccountDataModel
 from control.worker import QThreadWorker, BalanceWorker
 from control.csv_handler import handle_import_csv
 from control.logging_config import setup_logging
@@ -16,9 +16,9 @@ def init_market_data_model():
     return data_market, proxy_model_market
 
 def init_account_data_model():
-    data_account = pd.DataFrame(columns=["CURRENCY", "AVAILABLE"])
+    data_account = pd.DataFrame(columns=["CURRENCY", "AVAILABLE", "LOCKED", "TOTAL"])
     proxy_model_account = CustomSortFilterProxyModel()
-    proxy_model_account.setSourceModel(PandasModel(data_account))
+    proxy_model_account.setSourceModel(AccountDataModel(data_account))
     proxy_model_account.setSortRole(Qt.DisplayRole)
     return data_account, proxy_model_account
 
@@ -36,19 +36,18 @@ def update_model_market(data_frame, data_market, proxy_model_market):
     return data_market
 
 def update_model_account(data_frame, data_account, proxy_model_account):
-    logger.debug("Updating account model with new data")
-    logger.debug(f"Account DataFrame:\n{data_frame}")
+    logger.debug(f"Updating account model with new data: {data_frame}")
     data_account = data_frame
-    proxy_model_account.setSourceModel(PandasModel(data_account))
+    proxy_model_account.setSourceModel(AccountDataModel(data_account))
     logger.debug("Account model updated.")
     return data_account
 
 def update_balance(balance, data_account, proxy_model_account):
     logger.debug("Update balance called.")
-    if 'error' in balance:
+    if isinstance(balance, dict) and 'error' in balance:
         logger.error(f"Error: {balance['message']}")
     else:
-        data = [{"CURRENCY": currency, "AVAILABLE": available} for currency, available in balance.items()]
+        data = [{"CURRENCY": item["currency"], "AVAILABLE": item["available"], "LOCKED": item["locked"], "TOTAL": item["total"]} for item in balance]
         df = pd.DataFrame(data)
         logger.debug(f"Balance DataFrame:\n{df}")
         data_account = update_model_account(df, data_account, proxy_model_account)
@@ -120,14 +119,13 @@ def delete_market_rows(indices, data_market, proxy_model_market):
     print(data_market)  # Tambahkan cetak DataFrame untuk verifikasi
     return data_market
 
-
 def delete_account_rows(indices, data_account, proxy_model_account):
     logger.debug(f"Deleting rows at indices: {indices}")
     proxy_model_account.layoutAboutToBeChanged.emit()
     data_account.drop(data_account.index[indices], inplace=True)
     logger.debug(f"Data account after deletion:\n{data_account}")
     data_account.reset_index(drop=True, inplace=True)
-    proxy_model_account.setSourceModel(PandasModel(data_account))
+    proxy_model_account.setSourceModel(AccountDataModel(data_account))
     proxy_model_account.layoutChanged.emit()
     logger.debug("Account rows deleted")
     return data_account

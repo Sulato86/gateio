@@ -108,3 +108,14 @@ def delete_account_rows(indices, data_account, proxy_model_account):
     data_account = data_account.drop(indices).reset_index(drop=True)
     proxy_model_account.update_data(data_account)
     return data_account
+
+class AccountDataModel(PandasModel):
+    def __init__(self, data):
+        super().__init__(data)
+
+    def data(self, index, role=Qt.DisplayRole):
+        value = super().data(index, role)
+        if role == Qt.DisplayRole and index.column() in [1, 2, 3]:
+            # Format nilai saldo dengan 2 desimal untuk kolom "available", "locked", dan "total"
+            return f"{float(value):.2f}"
+        return value

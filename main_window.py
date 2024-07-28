@@ -15,6 +15,7 @@ from control.data_handler import (init_market_data_model, init_account_data_mode
                           update_model_market, update_model_account, update_balance, 
                           add_pair, update_market_data_with_new_pairs, restart_worker, close_event, 
                           delete_market_rows, delete_account_rows)
+from control.pandas_handler import AccountDataModel
 from api.api_gateio import GateioAPI
 
 # Memuat variabel lingkungan dari file .env
@@ -70,8 +71,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.tableView_marketdata.setContextMenuPolicy(Qt.CustomContextMenu)
         self.tableView_marketdata.customContextMenuRequested.connect(self.show_context_menu_market)
 
-        self.tableView_accountdata.setContextMenuPolicy(Qt.CustomContextMenu)
-        self.tableView_accountdata.customContextMenuRequested.connect(self.show_context_menu_account)
+        # Hapus atau nonaktifkan menu konteks untuk tableView_accountdata
+        # self.tableView_accountdata.setContextMenuPolicy(Qt.CustomContextMenu)
+        # self.tableView_accountdata.customContextMenuRequested.connect(self.show_context_menu_account)
 
         # Inisialisasi worker
         self.init_workers()

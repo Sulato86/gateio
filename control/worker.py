@@ -100,7 +100,7 @@ class QThreadWorker(QThread):
             logger.error(f"Error importing data: {e}")
 
 class BalanceWorker(QThread):
-    balance_signal = pyqtSignal(dict)
+    balance_signal = pyqtSignal(list)  # Mengubah sinyal menjadi list
 
     def __init__(self, api_key, api_secret):
         super().__init__()
@@ -113,6 +113,7 @@ class BalanceWorker(QThread):
         while self._is_running:
             try:
                 balance = self.api.get_account_balance()
+                logger.debug(f"Fetched balance: {balance}")
                 mutex.lock()
                 try:
                     self.balance_signal.emit(balance)
@@ -136,3 +137,4 @@ class BalanceWorker(QThread):
         if not self.wait(5000):  # Tunggu maksimal 5 detik
             logger.debug("BalanceWorker not stopping, terminating")
             self.terminate()
+
