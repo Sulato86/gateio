@@ -107,3 +107,27 @@ def close_event(worker, balance_worker):
     except Exception as e:
         logger.error(f"Error during closeEvent: {e}")
         return False
+
+def delete_market_rows(indices, data_market, proxy_model_market):
+    logger.debug(f"Deleting rows at indices: {indices}")
+    proxy_model_market.layoutAboutToBeChanged.emit()
+    data_market.drop(data_market.index[indices], inplace=True)
+    logger.debug(f"Data market after deletion:\n{data_market}")
+    data_market.reset_index(drop=True, inplace=True)
+    proxy_model_market.setSourceModel(PandasModel(data_market))
+    proxy_model_market.layoutChanged.emit()
+    logger.debug("Market rows deleted")
+    print(data_market)  # Tambahkan cetak DataFrame untuk verifikasi
+    return data_market
+
+
+def delete_account_rows(indices, data_account, proxy_model_account):
+    logger.debug(f"Deleting rows at indices: {indices}")
+    proxy_model_account.layoutAboutToBeChanged.emit()
+    data_account.drop(data_account.index[indices], inplace=True)
+    logger.debug(f"Data account after deletion:\n{data_account}")
+    data_account.reset_index(drop=True, inplace=True)
+    proxy_model_account.setSourceModel(PandasModel(data_account))
+    proxy_model_account.layoutChanged.emit()
+    logger.debug("Account rows deleted")
+    return data_account

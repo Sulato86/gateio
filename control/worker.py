@@ -2,12 +2,15 @@ import asyncio
 import pandas as pd
 from aiohttp import ClientSession
 from datetime import datetime
-from PyQt5.QtCore import QThread, pyqtSignal
+from PyQt5.QtCore import QThread, pyqtSignal, QMutex
 from api.api_gateio import GateioAPI
 from control.logging_config import setup_logging
 
 # Konfigurasi logging
 logger = setup_logging('workers.log')
+
+# Inisialisasi mutex
+mutex = QMutex()
 
 class QThreadWorker(QThread):
     result_ready = pyqtSignal(pd.DataFrame)
@@ -64,7 +67,11 @@ class QThreadWorker(QThread):
                         logger.debug(f"Timeout fetching data for {pair}")
             if rows:
                 df = pd.DataFrame(rows)
-                self.result_ready.emit(df)
+                mutex.lock()
+                try:
+                    self.result_ready.emit(df)
+                finally:
+                    mutex.unlock()
         except Exception as e:
             logger.error(f"Error in fetch_data: {e}")
 
@@ -106,7 +113,11 @@ class BalanceWorker(QThread):
         while self._is_running:
             try:
                 balance = self.api.get_account_balance()
-                self.balance_signal.emit(balance)
+                mutex.lock()
+                try:
+                    self.balance_signal.emit(balance)
+                finally:
+                    mutex.unlock()
                 logger.debug("Balance fetched and signal emitted")
                 for _ in range(60):
                     if not self._is_running:

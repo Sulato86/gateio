@@ -48,6 +48,19 @@ class PandasModel(QAbstractTableModel):
         self.layoutChanged.emit()
         logger.debug("Data model updated")
 
+    def removeRows(self, row, count, parent=None):
+        self.layoutAboutToBeChanged.emit()
+        indices = list(range(row, row + count))
+        self._data.drop(self._data.index[indices], inplace=True)
+        self._data.reset_index(drop=True, inplace=True)
+        self.layoutChanged.emit()
+        logger.debug(f"Rows {indices} removed")
+
+    def hapus_baris_pertama_kedua(self):
+        if self.rowCount() > 1:
+            self.removeRows(0, 2)
+            logger.debug("Baris pertama dan kedua dihapus")
+
 class CustomSortFilterProxyModel(QSortFilterProxyModel):
     def lessThan(self, left, right):
         left_data = self.sourceModel().data(left, Qt.DisplayRole)
