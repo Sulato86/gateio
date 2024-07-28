@@ -5,7 +5,7 @@ from aiohttp import ClientSession, ClientError
 from dotenv import load_dotenv
 from gate_api import SpotApi, Configuration, ApiClient
 from gate_api.exceptions import ApiException
-from control.logging_config import setup_logging  # Import setup_logging
+from control.logging_config import setup_logging
 
 # Memuat variabel lingkungan dari file .env
 load_dotenv()
@@ -56,13 +56,22 @@ class GateioAPI:
             logger.error(f"Error getting ticker info for {symbol}: {e}")
         return {}
 
-    def get_account_balance(self) -> dict:
+    def get_account_balance(self) -> list:
         try:
             accounts = self.spot_api.list_spot_accounts()
-            return {account.currency: account.available for account in accounts}
+            logger.debug(f"Accounts fetched: {accounts}")
+            return [
+                {
+                    "currency": account.currency,
+                    "available": account.available,
+                    "locked": account.locked,
+                    "total": float(account.available) + float(account.locked)
+                }
+                for account in accounts
+            ]
         except ApiException as e:
             logger.error(f"Error getting account balance: {e}")
-            return {}
+            return []
 
     def get_open_orders(self, symbol: str) -> list:
         try:
@@ -123,3 +132,11 @@ class GateioAPI:
         async with ClientSession() as session:
             tasks = [self.async_get_ticker_info(symbol, session) for symbol in symbols]
             return await asyncio.gather(*tasks)
+
+    def validate_credentials(self):
+        try:
+            self.spot_api.list_spot_accounts()
+            return True
+        except ApiException as e:
+            logger.error(f"Invalid API credentials: {e}")
+            return False

@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1168</width>
-    <height>856</height>
+    <width>1202</width>
+    <height>858</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -128,7 +128,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1168</width>
+     <width>1202</width>
      <height>26</height>
     </rect>
    </property>
@@ -136,10 +136,16 @@
     <property name="title">
      <string>Menu</string>
     </property>
+    <addaction name="actionImpor_API"/>
    </widget>
    <addaction name="menuMenu"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
+  <action name="actionImpor_API">
+   <property name="text">
+    <string>Impor API</string>
+   </property>
+  </action>
  </widget>
  <resources/>
  <connections/>

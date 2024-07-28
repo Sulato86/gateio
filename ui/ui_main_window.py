@@ -14,7 +14,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
-        MainWindow.resize(1168, 856)
+        MainWindow.resize(1202, 858)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
@@ -70,7 +70,7 @@ class Ui_MainWindow(object):
         self.verticalLayout_2.addWidget(self.tableView_accountdata)
         MainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QtWidgets.QMenuBar(MainWindow)
-        self.menubar.setGeometry(QtCore.QRect(0, 0, 1168, 26))
+        self.menubar.setGeometry(QtCore.QRect(0, 0, 1202, 26))
         self.menubar.setObjectName("menubar")
         self.menuMenu = QtWidgets.QMenu(self.menubar)
         self.menuMenu.setObjectName("menuMenu")
@@ -78,6 +78,9 @@ class Ui_MainWindow(object):
         self.statusbar = QtWidgets.QStatusBar(MainWindow)
         self.statusbar.setObjectName("statusbar")
         MainWindow.setStatusBar(self.statusbar)
+        self.actionImpor_API = QtWidgets.QAction(MainWindow)
+        self.actionImpor_API.setObjectName("actionImpor_API")
+        self.menuMenu.addAction(self.actionImpor_API)
         self.menubar.addAction(self.menuMenu.menuAction())
 
         self.retranslateUi(MainWindow)
@@ -90,3 +93,4 @@ class Ui_MainWindow(object):
         self.pushButton_export.setText(_translate("MainWindow", "EXPORT CSV"))
         self.label.setText(_translate("MainWindow", "ADD PAIR >"))
         self.menuMenu.setTitle(_translate("MainWindow", "Menu"))
+        self.actionImpor_API.setText(_translate("MainWindow", "Impor API"))
