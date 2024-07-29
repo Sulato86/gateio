@@ -13,16 +13,13 @@ ws_url = "wss://api.gateio.ws/ws/v4/"
 
 class GateIOWebSocket:
     def __init__(self, message_callback):
-        # Inisialisasi kelas GateIOWebSocket.
         self.message_callback = message_callback
 
     def on_message(self, ws, message):
-        # Fungsi yang dipanggil ketika menerima pesan dari websocket.
         try:
             data = json.loads(message)
             logger.info(f"Received message: {data}")
             
-            # Verifikasi bahwa data memiliki kunci yang diharapkan
             if 'channel' in data and 'event' in data and 'result' in data:
                 self.message_callback(data)
             else:
@@ -31,67 +28,33 @@ class GateIOWebSocket:
             logger.error(f"JSON decode error: {e}")
 
     def on_error(self, ws, error):
-        # Fungsi yang dipanggil ketika terjadi kesalahan pada websocket.
         logger.error(f"Error: {error}")
+        time.sleep(5)  # Tambahkan delay sebelum mencoba reconnect
+        self.run()  # Coba reconnect
 
     def on_close(self, ws, close_status_code, close_msg):
-        # Fungsi yang dipanggil ketika koneksi websocket ditutup.
         logger.info("### closed ###")
+        time.sleep(5)  # Tambahkan delay sebelum mencoba reconnect
+        self.run()  # Coba reconnect
 
     def on_open(self, ws):
-        # Fungsi yang dipanggil ketika koneksi websocket terbuka.
         logger.info("WebSocket is open")
-        
-        # Subscribe ke spot.tickers
-        tickers = ["BTC_USDT", "ETH_USDT", "LTC_USDT"]
-        subscribe_tickers_message = {
-            "time": int(time.time()),  # Waktu sekarang dalam epoch time
-            "channel": "spot.tickers",
-            "event": "subscribe",
-            "payload": tickers
-        }
-        ws.send(json.dumps(subscribe_tickers_message))
-        
-        # Subscribe ke spot.balances
-        subscribe_balances_message = {
-            "time": int(time.time()),  # Waktu sekarang dalam epoch time
-            "channel": "spot.balances",
-            "event": "subscribe",
-            "payload": []
-        }
-        ws.send(json.dumps(subscribe_balances_message))
-
-        # Subscribe ke spot.order_book
-        subscribe_order_book_message = {
-            "time": int(time.time()),  # Waktu sekarang dalam epoch time
-            "channel": "spot.order_book",
-            "event": "subscribe",
-            "payload": ["BTC_USDT", "20"]
-        }
-        ws.send(json.dumps(subscribe_order_book_message))
-        
-        # Subscribe ke spot.trades
-        #subscribe_trades_message = {
-        #    "time": int(time.time()),  # Waktu sekarang dalam epoch time
-        #    "channel": "spot.trades",
-        #    "event": "subscribe",
-        #    "payload": ["BTC_USDT", "ETH_USDT"]
-        #}
-        #ws.send(json.dumps(subscribe_trades_message))
-        
-        # Subscribe ke spot.candlesticks
-        subscribe_candlesticks_message = {
-            "time": int(time.time()),  # Waktu sekarang dalam epoch time
-            "channel": "spot.candlesticks",
-            "event": "subscribe",
-            "payload": ["BTC_USDT", "1m"]
-        }
-        ws.send(json.dumps(subscribe_candlesticks_message))
-
+        self.subscribe(ws, "spot.tickers", ["BTC_USDT", "ETH_USDT", "LTC_USDT"])
+        self.subscribe(ws, "spot.balances", [])
+        self.subscribe(ws, "spot.order_book", ["BTC_USDT", "20"])
+        self.subscribe(ws, "spot.candlesticks", ["BTC_USDT", "1m"])
         logger.info("Subscribed to multiple channels")
 
+    def subscribe(self, ws, channel, payload):
+        message = {
+            "time": int(time.time()),
+            "channel": channel,
+            "event": "subscribe",
+            "payload": payload
+        }
+        ws.send(json.dumps(message))
+
     def run(self):
-        # Memulai koneksi websocket dan menjalankannya.
         websocket.enableTrace(True)
         ws = websocket.WebSocketApp(ws_url,
                                     on_open=self.on_open,
@@ -102,7 +65,6 @@ class GateIOWebSocket:
 
 if __name__ == "__main__":
     def print_message(message):
-        # Fungsi contoh callback untuk mencetak pesan yang diterima.
         print("Received message in main:", message)
     gateio_ws = GateIOWebSocket(print_message)
     gateio_ws.run()
