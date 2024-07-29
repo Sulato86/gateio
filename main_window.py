@@ -17,14 +17,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         # Inisialisasi model untuk tableView_marketdata
         self.model = QStandardItemModel()
-        self.model.setHorizontalHeaderLabels(['Time', 'Currency Pair', 'Change Percentage', 'Last Price', 'Volume'])  # Urutan kolom baru
+        self.model.setHorizontalHeaderLabels(['TIME', 'PAIR', '24%', 'PRICE', 'VOLUME(B)'])  # Urutan kolom baru
         self.tableView_marketdata.setModel(self.model)
         self.tableView_marketdata.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
 
         # Dictionary untuk melacak baris pasangan mata uang
         self.row_mapping = {}
 
-        # Inisialisasi TickerTableUpdater
+        # Inisialisasi TickerTableUpdater websocket_worker.py
         self.ticker_updater = TickerTableUpdater(self.model, self.row_mapping)
 
         # Menjalankan thread websocket

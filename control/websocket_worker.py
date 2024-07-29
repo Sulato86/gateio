@@ -50,7 +50,7 @@ class TickerTableUpdater:
             # Menggunakan base_volume sebagai volume dan time dari message
             epoch_time = message.get('time', 0)  # Menggunakan message time
             singapore_tz = pytz.timezone('Asia/Singapore')
-            time = datetime.fromtimestamp(epoch_time, singapore_tz).strftime('%Y-%m-%d %H:%M:%S')
+            time = datetime.fromtimestamp(epoch_time, singapore_tz).strftime('%d-%m-%Y %H:%M:%S')
 
             currency_pair = ticker_data['currency_pair']
             change_percentage = float(ticker_data['change_percentage'])
