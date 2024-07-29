@@ -17,7 +17,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         # Inisialisasi model untuk tableView_marketdata
         self.model = QStandardItemModel()
-        self.model.setHorizontalHeaderLabels(['Currency Pair', 'Last Price', 'Change Percentage'])
+        self.model.setHorizontalHeaderLabels(['Time', 'Currency Pair', 'Change Percentage', 'Last Price', 'Volume'])  # Urutan kolom baru
         self.tableView_marketdata.setModel(self.model)
         self.tableView_marketdata.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
 

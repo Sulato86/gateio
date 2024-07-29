@@ -2,6 +2,8 @@ import logging
 from PyQt5.QtCore import QThread, pyqtSignal
 from PyQt5.QtGui import QStandardItem
 from api.api_gateio import GateIOWebSocket
+from datetime import datetime
+import pytz
 
 # Inisialisasi logger
 logger = logging.getLogger('websocket_worker')
@@ -23,11 +25,12 @@ class WebSocketWorker(QThread):
             if channel == 'spot.tickers':
                 result = message.get('result')
                 if isinstance(result, dict) and 'currency_pair' in result and 'last' in result and 'change_percentage' in result:
+                    # Periksa dan log jika time atau volume tidak ada
+                    if 'time' not in message or 'base_volume' not in result:
+                        logger.warning(f"Message missing 'time' or 'base_volume': {result}")
                     self.message_received.emit(message)
                 else:
                     logger.error(f"Message missing expected keys: {message}")
-            else:
-                logger.debug(f"Ignoring message from channel: {channel}")
 
         gateio_ws = GateIOWebSocket(send_message_to_ui)
         logger.info("Starting WebSocket connection")
@@ -44,20 +47,36 @@ class TickerTableUpdater:
         ticker_data = message.get('result', {})
 
         if 'currency_pair' in ticker_data and 'last' in ticker_data and 'change_percentage' in ticker_data:
+            # Menggunakan base_volume sebagai volume dan time dari message
+            epoch_time = message.get('time', 0)  # Menggunakan message time
+            singapore_tz = pytz.timezone('Asia/Singapore')
+            time = datetime.fromtimestamp(epoch_time, singapore_tz).strftime('%Y-%m-%d %H:%M:%S')
+
             currency_pair = ticker_data['currency_pair']
-            last_price = ticker_data['last']
-            change_percentage = ticker_data['change_percentage']
+            change_percentage = float(ticker_data['change_percentage'])
+            last_price = float(ticker_data['last'])
+            volume = float(ticker_data.get('base_volume', 'N/A'))  # Menggunakan base_volume sebagai volume
+
+            # Format desimal
+            change_percentage = f"{change_percentage:.1f}"  # 1 digit desimal
+            last_price = f"{last_price:.2f}"  # 2 digit desimal
+            volume = f"{volume:.2f}"  # 2 digit desimal
 
             if currency_pair in self.row_mapping:
                 row_index = self.row_mapping[currency_pair]
-                self.model.setItem(row_index, 1, QStandardItem(str(last_price)))
-                self.model.setItem(row_index, 2, QStandardItem(str(change_percentage)))
+                self.model.setItem(row_index, 0, QStandardItem(str(time)))
+                self.model.setItem(row_index, 1, QStandardItem(currency_pair))
+                self.model.setItem(row_index, 2, QStandardItem(change_percentage))
+                self.model.setItem(row_index, 3, QStandardItem(last_price))
+                self.model.setItem(row_index, 4, QStandardItem(volume))
             else:
                 row_index = self.model.rowCount()
                 self.row_mapping[currency_pair] = row_index
+                time_item = QStandardItem(str(time))
                 currency_pair_item = QStandardItem(currency_pair)
-                last_price_item = QStandardItem(str(last_price))
-                change_percentage_item = QStandardItem(str(change_percentage))
-                self.model.appendRow([currency_pair_item, last_price_item, change_percentage_item])
+                change_percentage_item = QStandardItem(change_percentage)
+                last_price_item = QStandardItem(last_price)
+                volume_item = QStandardItem(volume)
+                self.model.appendRow([time_item, currency_pair_item, change_percentage_item, last_price_item, volume_item])
         else:
             logger.error(f"Missing expected keys in data: {ticker_data}")
