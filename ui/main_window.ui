@@ -61,7 +61,7 @@
      </font>
     </property>
    </widget>
-   <widget class="QPushButton" name="pushButton_import">
+   <widget class="QPushButton" name="pushButton_importmarketdata">
     <property name="geometry">
      <rect>
       <x>140</x>

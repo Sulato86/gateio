@@ -45,9 +45,9 @@ class Ui_MainWindow(object):
         font.setWeight(75)
         self.lineEdit_addpair.setFont(font)
         self.lineEdit_addpair.setObjectName("lineEdit_addpair")
-        self.pushButton_import = QtWidgets.QPushButton(self.centralwidget)
-        self.pushButton_import.setGeometry(QtCore.QRect(140, 760, 121, 41))
-        self.pushButton_import.setObjectName("pushButton_import")
+        self.pushButton_importmarketdata = QtWidgets.QPushButton(self.centralwidget)
+        self.pushButton_importmarketdata.setGeometry(QtCore.QRect(140, 760, 121, 41))
+        self.pushButton_importmarketdata.setObjectName("pushButton_importmarketdata")
         self.pushButton_export = QtWidgets.QPushButton(self.centralwidget)
         self.pushButton_export.setGeometry(QtCore.QRect(10, 760, 121, 41))
         self.pushButton_export.setObjectName("pushButton_export")
@@ -89,7 +89,7 @@ class Ui_MainWindow(object):
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
         MainWindow.setWindowTitle(_translate("MainWindow", "MainWindow"))
-        self.pushButton_import.setText(_translate("MainWindow", "IMPORT CSV"))
+        self.pushButton_importmarketdata.setText(_translate("MainWindow", "IMPORT CSV"))
         self.pushButton_export.setText(_translate("MainWindow", "EXPORT CSV"))
         self.label.setText(_translate("MainWindow", "ADD PAIR >"))
         self.menuMenu.setTitle(_translate("MainWindow", "Menu"))
