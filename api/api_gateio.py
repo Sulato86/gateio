@@ -18,9 +18,17 @@ class GateIOWebSocket:
 
     def on_message(self, ws, message):
         # Fungsi yang dipanggil ketika menerima pesan dari websocket.
-        data = json.loads(message)
-        logger.info(f"Received message: {data}")
-        self.message_callback(data)
+        try:
+            data = json.loads(message)
+            logger.info(f"Received message: {data}")
+            
+            # Verifikasi bahwa data memiliki kunci yang diharapkan
+            if 'channel' in data and 'event' in data and 'result' in data:
+                self.message_callback(data)
+            else:
+                logger.error(f"Unexpected data format: {data}")
+        except json.JSONDecodeError as e:
+            logger.error(f"JSON decode error: {e}")
 
     def on_error(self, ws, error):
         # Fungsi yang dipanggil ketika terjadi kesalahan pada websocket.
@@ -63,13 +71,13 @@ class GateIOWebSocket:
         ws.send(json.dumps(subscribe_order_book_message))
         
         # Subscribe ke spot.trades
-        subscribe_trades_message = {
-            "time": int(time.time()),  # Waktu sekarang dalam epoch time
-            "channel": "spot.trades",
-            "event": "subscribe",
-            "payload": ["BTC_USDT", "ETH_USDT"]
-        }
-        ws.send(json.dumps(subscribe_trades_message))
+        #subscribe_trades_message = {
+        #    "time": int(time.time()),  # Waktu sekarang dalam epoch time
+        #    "channel": "spot.trades",
+        #    "event": "subscribe",
+        #    "payload": ["BTC_USDT", "ETH_USDT"]
+        #}
+        #ws.send(json.dumps(subscribe_trades_message))
         
         # Subscribe ke spot.candlesticks
         subscribe_candlesticks_message = {
