@@ -2,7 +2,7 @@ import sys
 import logging
 from PyQt5.QtWidgets import QApplication, QMainWindow, QHeaderView
 from PyQt5.QtGui import QStandardItemModel, QStandardItem
-from control.websocket_worker import WebSocketWorker, TickerTableUpdater
+from control.worker import WebSocketWorker, TickerTableUpdater
 from control.logging_config import setup_logging
 from ui.ui_main_window import Ui_MainWindow
 
@@ -45,6 +45,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.balance_model.setHorizontalHeaderLabels(['Currency', 'Available', 'Locked'])
         logger.info(f"Updating balance table with data: {balances}")
         for balance in balances:
+            logger.debug(f"Processing balance: {balance}")
             currency = QStandardItem(balance.get("currency", ""))
             available = QStandardItem(balance.get("available", ""))
             locked = QStandardItem(balance.get("locked", ""))

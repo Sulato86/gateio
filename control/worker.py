@@ -1,10 +1,13 @@
 import logging
 import asyncio
+import pytz
+import os
+import sys
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from PyQt5.QtCore import QThread, pyqtSignal
 from PyQt5.QtGui import QStandardItem
 from api.api_gateio import GateIOWebSocket
 from datetime import datetime
-import pytz
 
 # Inisialisasi logger
 logger = logging.getLogger('websocket_worker')
@@ -59,6 +62,7 @@ class WebSocketWorker(QThread):
                 if isinstance(balances, dict):
                     balances = [balances]
                 self.balance_received.emit(balances)
+
 
 class TickerTableUpdater:
     def __init__(self, model, row_mapping):

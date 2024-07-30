@@ -5,7 +5,7 @@ import websockets
 import logging
 import time
 from dotenv import load_dotenv
-from gate_api import Configuration, ApiClient
+from gate_api import Configuration, ApiClient, SpotApi, WalletApi
 
 # Load environment variables from .env file
 load_dotenv()
@@ -22,9 +22,39 @@ logger.addHandler(handler)
 api_key = os.getenv('API_KEY')
 api_secret = os.getenv('API_SECRET')
 
+if not api_key or not api_secret:
+    raise ValueError("API_KEY dan API_SECRET harus disetel dalam environment variables")
+
 # Konfigurasi API
 configuration = Configuration(key=api_key, secret=api_secret)
 api_client = ApiClient(configuration=configuration)
+
+class GateIOAPI:
+    def __init__(self, api_client):
+        self.api_client = api_client
+        self.spot_api = SpotApi(api_client)
+        self.wallet_api = WalletApi(api_client)
+
+    def get_balances(self):
+        try:
+            return self.wallet_api.list_all_balances()
+        except Exception as e:
+            logger.error(f"Error getting balances: {e}")
+            return None
+
+    def get_order_history(self, currency_pair):
+        try:
+            return self.spot_api.list_orders(currency_pair=currency_pair, status='finished')
+        except Exception as e:
+            logger.error(f"Error getting order history: {e}")
+            return None
+
+    def cancel_order(self, currency_pair, order_id):
+        try:
+            return self.spot_api.cancel_order(currency_pair=currency_pair, order_id=order_id)
+        except Exception as e:
+            logger.error(f"Error canceling order: {e}")
+            return None
 
 class GateIOWebSocket:
     def __init__(self, message_callback):
@@ -35,7 +65,10 @@ class GateIOWebSocket:
         try:
             data = json.loads(message)
             logger.info(f"Received message: {data}")
-            self.message_callback(data)
+            if asyncio.iscoroutinefunction(self.message_callback):
+                await self.message_callback(data)
+            else:
+                self.message_callback(data)
         except json.JSONDecodeError as e:
             logger.error(f"JSON decode error: {e}")
 
@@ -62,14 +95,24 @@ class GateIOWebSocket:
         await websocket.send(json.dumps(message))
 
     async def run(self):
-        async with websockets.connect(self.ws_url) as websocket:
-            await self.on_open(websocket)
-            async for message in websocket:
-                await self.on_message(message)
+        while True:
+            try:
+                async with websockets.connect(self.ws_url) as websocket:
+                    await self.on_open(websocket)
+                    async for message in websocket:
+                        await self.on_message(message)
+            except websockets.ConnectionClosed as e:
+                logger.error(f"WebSocket connection closed: {e}")
+                await asyncio.sleep(5)  # Retry setelah 5 detik
+            except Exception as e:
+                logger.error(f"Unexpected error: {e}")
+                await asyncio.sleep(5)  # Retry setelah 5 detik
 
-if __name__ == "__main__":
-    def print_message(message):
-        print("Received message in main:", message)
+    async def get_account_balance(self):
+        return GateIOAPI(api_client).get_balances()
 
-    gateio_ws = GateIOWebSocket(print_message)
-    asyncio.get_event_loop().run_until_complete(gateio_ws.run())
+    async def get_order_history(self, currency_pair):
+        return GateIOAPI(api_client).get_order_history(currency_pair)
+        
+    async def cancel_order(self, currency_pair, order_id):
+        return GateIOAPI(api_client).cancel_order(currency_pair, order_id)
