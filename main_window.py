@@ -15,19 +15,25 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         super().__init__()
         self.setupUi(self)
 
-        # Inisialisasi model untuk tableView_marketdata
-        self.market_model = QStandardItemModel()
-        self.market_model.setHorizontalHeaderLabels(['TIME', 'PAIR', '24%', 'PRICE', 'VOLUME(B)'])
-        self.tableView_marketdata.setModel(self.market_model)
-        self.tableView_marketdata.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-
         # Dictionary untuk melacak baris pasangan mata uang
         self.row_mapping = {}
 
-        # Inisialisasi TickerTableUpdater websocket_worker.py
+        # Inisialisasi model untuk tableView_marketdata
+        self.market_model = QStandardItemModel()
+        self.market_model.setHorizontalHeaderLabels(['TIME', 'PAIR', '24%', 'PRICE', 'VOLUME(Base)'])
+        self.tableView_marketdata.setModel(self.market_model)
+        self.tableView_marketdata.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+
+        # Inisialisasi model untuk tableView_accountdata
+        self.account_model = QStandardItemModel()
+        self.account_model.setHorizontalHeaderLabels(['ASSET', 'FREE', 'LOCKED'])
+        self.tableView_accountdata.setModel(self.account_model)
+        self.tableView_accountdata.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+
+        # Inisialisasi TickerTableUpdater pada worker.py
         self.ticker_updater = TickerTableUpdater(self.market_model, self.row_mapping)
 
-        # Menjalankan thread websocket
+        # Menjalankan thread websocket pada worker.py
         self.websocket_thread = WebSocketWorker()
         self.websocket_thread.message_received.connect(self.ticker_updater.update_ticker_table)
         logger.info("Starting WebSocket thread")

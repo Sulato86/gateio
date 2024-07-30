@@ -6,7 +6,7 @@ import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from PyQt5.QtCore import QThread, pyqtSignal
 from PyQt5.QtGui import QStandardItem
-from api.api_gateio import GateIOWebSocket
+from api.websocket_gateio import GateIOWebSocket
 from datetime import datetime
 
 # Inisialisasi logger
