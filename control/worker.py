@@ -10,9 +10,9 @@ from api.api_gateio import GateIOWebSocket
 from datetime import datetime
 
 # Inisialisasi logger
-logger = logging.getLogger('websocket_worker')
+logger = logging.getLogger('worker')
 logger.setLevel(logging.DEBUG)
-handler = logging.FileHandler('websocket_worker.log')
+handler = logging.FileHandler('worker.log')
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 handler.setFormatter(formatter)
 logger.addHandler(handler)
@@ -37,7 +37,7 @@ class WebSocketWorker(QThread):
                 await self.gateio_ws.run()
             except Exception as e:
                 logger.error(f"WebSocket connection error: {e}")
-                await asyncio.sleep(5)  # Tunggu sebelum reconnect
+                await asyncio.sleep(5)
 
     def send_message_to_ui(self, message):
         logger.debug(f"Emitting message to UI: {message}")
@@ -52,17 +52,7 @@ class WebSocketWorker(QThread):
                 self.message_received.emit(message)
             else:
                 logger.error(f"Message missing expected keys: {message}")
-                logger.error(f"Complete message: {message}")  # Logging the complete message for debugging
-        elif channel == 'spot.balances':
-            if 'error' in message:
-                logger.error(f"Subscription error: {message['error']}")
-            else:
-                balances = message.get('result', [])
-                logger.info(f"Received balance data: {balances}")
-                if isinstance(balances, dict):
-                    balances = [balances]
-                self.balance_received.emit(balances)
-
+                logger.error(f"Complete message: {message}")
 
 class TickerTableUpdater:
     def __init__(self, model, row_mapping):
@@ -107,3 +97,4 @@ class TickerTableUpdater:
                 self.model.appendRow([time_item, currency_pair_item, change_percentage_item, last_price_item, volume_item])
         else:
             logger.error(f"Missing expected keys in data: {ticker_data}")
+
