@@ -30,7 +30,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # Menjalankan thread websocket
         self.websocket_thread = WebSocketWorker()
         self.websocket_thread.message_received.connect(self.ticker_updater.update_ticker_table)
-        #self.websocket_thread.balance_received.connect(self.update_balance_table)
         logger.info("Starting WebSocket thread")
         self.websocket_thread.start()
 

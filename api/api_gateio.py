@@ -49,13 +49,6 @@ class GateIOAPI:
             logger.error(f"Error getting order history: {e}")
             return None
 
-    def cancel_order(self, currency_pair, order_id):
-        try:
-            return self.spot_api.cancel_order(currency_pair=currency_pair, order_id=order_id)
-        except Exception as e:
-            logger.error(f"Error canceling order: {e}")
-            return None
-
 class GateIOWebSocket:
     def __init__(self, message_callback):
         self.message_callback = message_callback
@@ -107,12 +100,6 @@ class GateIOWebSocket:
             except Exception as e:
                 logger.error(f"Unexpected error: {e}")
                 await asyncio.sleep(5)  # Retry setelah 5 detik
-
-    async def get_account_balance(self):
-        return GateIOAPI(api_client).get_balances()
-
-    async def get_order_history(self, currency_pair):
-        return GateIOAPI(api_client).get_order_history(currency_pair)
         
     async def cancel_order(self, currency_pair, order_id):
         return GateIOAPI(api_client).cancel_order(currency_pair, order_id)
