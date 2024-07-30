@@ -1,6 +1,5 @@
-
 import logging
-import time
+import asyncio
 from PyQt5.QtCore import QThread, pyqtSignal
 from PyQt5.QtGui import QStandardItem
 from api.api_gateio import GateIOWebSocket
@@ -17,30 +16,49 @@ logger.addHandler(handler)
 
 class WebSocketWorker(QThread):
     message_received = pyqtSignal(dict)
+    balance_received = pyqtSignal(list)
+
+    def __init__(self):
+        super().__init__()
+        self.gateio_ws = GateIOWebSocket(self.send_message_to_ui)
 
     def run(self):
-        def send_message_to_ui(message):
-            logger.debug(f"Emitting message to UI: {message}")
-            channel = message.get('channel')
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(self.connect())
 
-            if channel == 'spot.tickers':
-                result = message.get('result')
-                required_keys = ['currency_pair', 'last', 'change_percentage', 'base_volume']
-                if all(key in result for key in required_keys):
-                    if 'time' not in message:
-                        logger.warning(f"Message missing 'time': {result}")
-                    self.message_received.emit(message)
-                else:
-                    logger.error(f"Message missing expected keys: {message}")
-
+    async def connect(self):
         while True:
             try:
-                gateio_ws = GateIOWebSocket(send_message_to_ui)
                 logger.info("Starting WebSocket connection")
-                gateio_ws.run()
+                await self.gateio_ws.run()
             except Exception as e:
                 logger.error(f"WebSocket connection error: {e}")
-                time.sleep(5)  # Tunggu sebelum reconnect
+                await asyncio.sleep(5)  # Tunggu sebelum reconnect
+
+    def send_message_to_ui(self, message):
+        logger.debug(f"Emitting message to UI: {message}")
+        channel = message.get('channel')
+
+        if channel == 'spot.tickers':
+            result = message.get('result', {})
+            required_keys = ['currency_pair', 'last', 'change_percentage', 'base_volume']
+            if all(key in result for key in required_keys):
+                if 'time' not in message:
+                    logger.warning(f"Message missing 'time': {result}")
+                self.message_received.emit(message)
+            else:
+                logger.error(f"Message missing expected keys: {message}")
+                logger.error(f"Complete message: {message}")  # Logging the complete message for debugging
+        elif channel == 'spot.balances':
+            if 'error' in message:
+                logger.error(f"Subscription error: {message['error']}")
+            else:
+                balances = message.get('result', [])
+                logger.info(f"Received balance data: {balances}")
+                if isinstance(balances, dict):
+                    balances = [balances]
+                self.balance_received.emit(balances)
 
 class TickerTableUpdater:
     def __init__(self, model, row_mapping):
