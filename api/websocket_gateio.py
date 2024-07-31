@@ -28,7 +28,7 @@ class GateIOWebSocket:
         logger.debug("Inisialisasi GateIOWebSocket")
         self.message_callback = message_callback
         self.ws_url = "wss://api.gateio.ws/ws/v4/"
-        self.pairs = pairs if pairs else ["BTC_USDT", "ETH_USDT", "SOL_USDT"]
+        self.pairs = pairs if pairs else ["BTC_USDT", "ETH_USDT"]
         self.websocket = None  # Menyimpan websocket instance
 
     # Method untuk menghandle pesan yang diterima
@@ -78,6 +78,8 @@ class GateIOWebSocket:
                 logger.info(f"Subscribing to new pair: {pair}")
                 await self.subscribe(self.websocket, "spot.tickers", [pair])
                 logger.info(f"Subscribed to new pair: {pair}")
+            else:
+                logger.error("WebSocket is not connected.")
 
     # Method untuk menjalankan loop WebSocket
     async def run(self):
@@ -95,14 +97,3 @@ class GateIOWebSocket:
             except Exception as e:
                 logger.error(f"Unexpected error: {e}")
                 await asyncio.sleep(5)
-
-"""if __name__ == "__main__":
-    logger.debug("Menjalankan script websocket_gateio.py")
-    
-    async def message_handler(message):
-        logger.info(f"Handling message: {message}")
-
-    pairs = ["BTC_USDT", "ETH_USDT", "SOL_USDT"]
-    ws = GateIOWebSocket(message_handler, pairs)
-    
-    asyncio.run(ws.run())"""

@@ -3,6 +3,7 @@ import logging
 import sqlite3
 from PyQt5.QtWidgets import QApplication, QMainWindow, QHeaderView
 from PyQt5.QtGui import QStandardItemModel, QStandardItem
+from PyQt5.QtCore import Qt
 from control.websocket_worker import WebSocketWorker, TickerTableUpdater
 from control.logging_config import setup_logging
 from ui.ui_main_window import Ui_MainWindow
@@ -66,10 +67,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if pair and pair not in self.websocket_thread.gateio_ws.pairs:
             logger.info(f"Adding pair: {pair}")
             self.websocket_thread.gateio_ws.pairs.append(pair)
-            self.websocket_thread.add_pair(pair)
             self.save_pair(pair)
             self.update_pairs_display([pair])
             self.lineEdit_addpair.clear()
+            self.restart_websocket_worker()
         else:
             logger.info(f"Pair {pair} already exists or is invalid.")
 
@@ -109,8 +110,19 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def update_account_view(self, account_model):
         self.tableView_accountdata.setModel(account_model)
 
+    def restart_websocket_worker(self):
+        logger.info("Restarting WebSocket worker")
+        self.websocket_thread.stop()
+        self.websocket_thread.wait()
+        pairs = self.load_pairs()
+        self.websocket_thread = WebSocketWorker(pairs)
+        self.websocket_thread.message_received.connect(self.ticker_updater.update_ticker_table)
+        self.websocket_thread.start()
+
     def closeEvent(self, event):
         self.conn.close()
+        self.websocket_thread.stop()
+        self.websocket_thread.wait()
         event.accept()
 
 if __name__ == "__main__":

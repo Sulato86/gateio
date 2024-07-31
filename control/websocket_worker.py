@@ -1,15 +1,10 @@
 import logging
 import asyncio
-import pytz
-import os
-import sys
-from datetime import datetime
 from PyQt5.QtCore import QThread, pyqtSignal, pyqtSlot
 from PyQt5.QtGui import QStandardItem, QStandardItemModel
-
-
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from api.websocket_gateio import GateIOWebSocket
+from datetime import datetime
+import pytz
 
 # Inisialisasi logger
 logger = logging.getLogger('websocket_worker')
@@ -20,28 +15,31 @@ handler.setFormatter(formatter)
 logger.addHandler(handler)
 
 class WebSocketWorker(QThread):
-    # Signal untuk mengirimkan pesan ke UI
     message_received = pyqtSignal(dict)
     balance_received = pyqtSignal(list)
 
-    # Inisialisasi GateIOWebSocket
     def __init__(self, pairs=None):
         super().__init__()
         self.gateio_ws = GateIOWebSocket(self.send_message_to_ui, pairs)
         self.loop = None
+        self.stop_event = asyncio.Event()
         logger.debug("WebSocketWorker initialized with pairs: %s", pairs)
 
-    # Method untuk menjalankan thread
     def run(self):
         logger.debug("WebSocketWorker thread started")
         self.loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self.loop)
-        self.loop.run_until_complete(self.connect())
-        logger.debug("Event loop has finished")
+        try:
+            self.loop.run_until_complete(self.connect())
+        except RuntimeError as e:
+            logger.error(f"Runtime error: {e}")
+        finally:
+            logger.debug("Closing event loop")
+            self.loop.run_until_complete(self.loop.shutdown_asyncgens())
+            self.loop.close()
 
-    # Method untuk membuat koneksi ke WebSocket
     async def connect(self):
-        while True:
+        while not self.stop_event.is_set():
             try:
                 logger.info("Starting WebSocket connection")
                 await self.gateio_ws.run()
@@ -50,35 +48,26 @@ class WebSocketWorker(QThread):
                 await asyncio.sleep(5)
                 logger.info("Retrying WebSocket connection in 5 seconds")
 
-    # Method untuk mengirimkan pesan ke UI
     def send_message_to_ui(self, message):
         logger.debug(f"Emitting message to UI: {message}")
-        channel = message.get('channel')
+        self.message_received.emit(message)
 
-        if channel == 'spot.tickers':
-            result = message.get('result', {})
-            required_keys = ['currency_pair', 'last', 'change_percentage', 'base_volume']
-            if all(key in result for key in required_keys):
-                if 'time' not in message:
-                    logger.warning(f"Message missing 'time': {result}")
-                currency_pair = result.get('currency_pair', 'unknown')
-                logger.info(f"Message for pair {currency_pair} received")
-                self.message_received.emit(message)
-            else:
-                logger.error(f"Message missing expected keys: {message}")
-                logger.error(f"Complete message: {message}")
-
-    # Method untuk menghentikan thread
     def stop(self):
+        logger.debug("Stopping WebSocketWorker")
         if self.loop:
+            self.stop_event.set()
             self.loop.call_soon_threadsafe(self.loop.stop)
             logger.debug("Event loop stop called")
 
-    # Slot untuk menambah pasangan baru
     @pyqtSlot(str)
     def add_pair(self, pair):
         logger.info(f"Adding new pair: {pair}")
-        asyncio.run_coroutine_threadsafe(self.gateio_ws.subscribe_to_pair(pair), self.loop)
+        if pair not in self.gateio_ws.pairs:
+            self.gateio_ws.pairs.append(pair)
+            logger.debug(f"Pair {pair} added to the list, attempting to subscribe.")
+            asyncio.run_coroutine_threadsafe(self.gateio_ws.subscribe_to_pair(pair), self.loop)
+        else:
+            logger.info(f"Pair {pair} already exists.")
 
 class TickerTableUpdater:
     def __init__(self, model, row_mapping):
@@ -90,7 +79,7 @@ class TickerTableUpdater:
         logger.debug(f"Received message for ticker update: {message}")
         ticker_data = message.get('result', {})
         required_keys = ['currency_pair', 'change_percentage', 'last', 'base_volume']
-        
+
         if all(key in ticker_data for key in required_keys):
             epoch_time = message.get('time', 0)
             singapore_tz = pytz.timezone('Asia/Singapore')
@@ -127,4 +116,5 @@ class TickerTableUpdater:
                 self.model.appendRow([time_item, currency_pair_item, change_percentage_item, last_price_item, volume_item])
                 logger.debug(f"Row added for {currency_pair}")
         else:
-            logger.error(f"Missing expected keys in data: {ticker_data}")
+            missing_keys = [key for key in required_keys if key not in ticker_data]
+            logger.error(f"Missing expected keys in data: {missing_keys}, data: {ticker_data}")

@@ -83,10 +83,3 @@ if __name__ == "__main__":
         logger.info(f"Balances: {balances}")
     else:
         logger.warning("Balances tidak ditemukan atau gagal diambil")
-    
-    """# Contoh menjalankan fungsi get_order_history
-    orders = api.get_order_history("BTC_USDT")
-    if orders:
-        logger.info(f"Order history: {orders}")
-    else:
-        logger.warning("Order history tidak ditemukan atau gagal diambil")"""
