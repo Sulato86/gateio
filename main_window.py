@@ -1,7 +1,8 @@
 import sys
 import logging
+import json
 from PyQt5.QtWidgets import QApplication, QMainWindow, QHeaderView
-from PyQt5.QtGui import QStandardItemModel
+from PyQt5.QtGui import QStandardItemModel, QStandardItem
 from control.websocket_worker import WebSocketWorker, TickerTableUpdater
 from control.logging_config import setup_logging
 from ui.ui_main_window import Ui_MainWindow
@@ -44,6 +45,46 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.http_worker.data_ready.connect(self.update_account_view)
         self.http_worker.fetch_balances()
 
+        # Hubungkan QLineEdit untuk input pasangan baru
+        self.lineEdit_addpair.returnPressed.connect(self.add_pair)
+
+        # Tampilkan pasangan mata uang yang sudah ada saat inisialisasi
+        self.update_pairs_display(pairs)
+
+    def add_pair(self):
+        pair = self.lineEdit_addpair.text()
+        if pair and pair not in self.websocket_thread.gateio_ws.pairs:
+            self.websocket_thread.gateio_ws.pairs.append(pair)
+            self.websocket_thread.add_pair(pair)
+            self.save_pairs()
+            self.update_pairs_display([pair])
+            self.lineEdit_addpair.clear()
+
+    def save_pairs(self):
+        with open('pairs.json', 'w') as file:
+            json.dump(self.websocket_thread.gateio_ws.pairs, file)
+
+    @staticmethod
+    def load_pairs():
+        try:
+            with open('pairs.json', 'r') as file:
+                return json.load(file)
+        except (FileNotFoundError, json.JSONDecodeError):
+            return []
+
+    def update_pairs_display(self, pairs):
+        for pair in pairs:
+            if pair not in self.row_mapping:
+                row_index = self.market_model.rowCount()
+                self.row_mapping[pair] = row_index
+                self.market_model.appendRow([
+                    QStandardItem(""), 
+                    QStandardItem(pair), 
+                    QStandardItem(""), 
+                    QStandardItem(""), 
+                    QStandardItem("")
+                ])
+
     def update_market_data(self, data):
         logger.debug(f"Market data updated: {data}")
 
@@ -53,7 +94,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 if __name__ == "__main__":
     logger.info("Starting application")
 
-    pairs = ["BTC_USDT", "ETH_USDT", "SOL_USDT", "SHIB_USDT", "GT_USDT", "BABYDOGE_USDT"]
+    pairs = MainWindow.load_pairs()
     app = QApplication(sys.argv)
     window = MainWindow(pairs)
     window.show()
@@ -61,5 +102,3 @@ if __name__ == "__main__":
 
     # Flush and close file handlers
     logging.shutdown()
-
-

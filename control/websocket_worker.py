@@ -4,8 +4,8 @@ import pytz
 import os
 import sys
 from datetime import datetime
-from PyQt5.QtCore import QThread, pyqtSignal
-from PyQt5.QtGui import QStandardItem
+from PyQt5.QtCore import QThread, pyqtSignal, pyqtSlot
+from PyQt5.QtGui import QStandardItem, QStandardItemModel
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from api.websocket_gateio import GateIOWebSocket
@@ -73,6 +73,12 @@ class WebSocketWorker(QThread):
             self.loop.call_soon_threadsafe(self.loop.stop)
             logger.debug("Event loop stop called")
 
+    # Slot untuk menambah pasangan baru
+    @pyqtSlot(str)
+    def add_pair(self, pair):
+        logger.info(f"Adding new pair: {pair}")
+        asyncio.run_coroutine_threadsafe(self.gateio_ws.subscribe_to_pair(pair), self.loop)
+
 class TickerTableUpdater:
     def __init__(self, model, row_mapping):
         self.model = model
@@ -91,7 +97,7 @@ class TickerTableUpdater:
 
             currency_pair = ticker_data['currency_pair']
             change_percentage = float(ticker_data['change_percentage'])
-            last_price = (ticker_data['last'])
+            last_price = ticker_data['last']
             volume = ticker_data.get('base_volume', 0.0)
             volume = float(volume) if volume is not None else 0.0
 
@@ -121,4 +127,3 @@ class TickerTableUpdater:
                 logger.debug(f"Row added for {currency_pair}")
         else:
             logger.error(f"Missing expected keys in data: {ticker_data}")
-

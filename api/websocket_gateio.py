@@ -28,7 +28,8 @@ class GateIOWebSocket:
         logger.debug("Inisialisasi GateIOWebSocket")
         self.message_callback = message_callback
         self.ws_url = "wss://api.gateio.ws/ws/v4/"
-        self.pairs = pairs if pairs else ["BTC_USDT", "ETH_USDT", "SOL_USDT"]
+        self.pairs = pairs if pairs else ["BTC_USDT", "ETH_USDT"]
+        self.websocket = None  # Menyimpan websocket instance
 
     # Method untuk menghandle pesan yang diterima
     async def on_message(self, message):
@@ -68,12 +69,21 @@ class GateIOWebSocket:
         logger.debug(f"Subscribing with message: {message}")
         await websocket.send(json.dumps(message))
 
+    # Method untuk menambah subscription ke pair baru
+    async def subscribe_to_pair(self, pair):
+        if pair not in self.pairs:
+            self.pairs.append(pair)
+            if self.websocket:  # Jika websocket aktif, subscribe langsung
+                await self.subscribe(self.websocket, "spot.tickers", [pair])
+                logger.info(f"Subscribed to new pair: {pair}")
+
     # Method untuk menjalankan loop WebSocket
     async def run(self):
         logger.debug("Memulai websocket run loop")
         while True:
             try:
                 async with websockets.connect(self.ws_url) as websocket:
+                    self.websocket = websocket  # Simpan instance websocket
                     await self.on_open(websocket)
                     async for message in websocket:
                         await self.on_message(message)
