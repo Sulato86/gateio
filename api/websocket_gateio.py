@@ -24,10 +24,11 @@ logger.addHandler(console_handler)
 
 class GateIOWebSocket:
     # Inisialisasi GateIOWebSocket
-    def __init__(self, message_callback):
+    def __init__(self, message_callback, pairs=None):
         logger.debug("Inisialisasi GateIOWebSocket")
         self.message_callback = message_callback
         self.ws_url = "wss://api.gateio.ws/ws/v4/"
+        self.pairs = pairs if pairs else ["BTC_USDT", "ETH_USDT", "SOL_USDT"]
 
     # Method untuk menghandle pesan yang diterima
     async def on_message(self, message):
@@ -53,16 +54,16 @@ class GateIOWebSocket:
     # Method yang dipanggil saat koneksi WebSocket dibuka
     async def on_open(self, websocket):
         logger.info("WebSocket opened")
-        await self.subscribe(websocket, "spot.tickers", ["BTC_USDT", "ETH_USDT", "SOL_USDT"])
-        logger.info("Subscribed to multiple channels")
+        await self.subscribe(websocket, "spot.tickers", self.pairs)
+        logger.info(f"Subscribed to pairs: {self.pairs}")
 
     # Method untuk subscribe ke channel
-    async def subscribe(self, websocket, channel, params):
+    async def subscribe(self, websocket, channel, pairs):
         message = {
             "time": int(time.time()),
             "channel": channel,
             "event": "subscribe",
-            "payload": params
+            "payload": pairs
         }
         logger.debug(f"Subscribing with message: {message}")
         await websocket.send(json.dumps(message))
@@ -78,10 +79,10 @@ class GateIOWebSocket:
                         await self.on_message(message)
             except websockets.ConnectionClosed as e:
                 logger.error(f"WebSocket connection closed: {e}")
-                await asyncio.sleep(5)  # Retry setelah 5 detik
+                await asyncio.sleep(5)
             except Exception as e:
                 logger.error(f"Unexpected error: {e}")
-                await asyncio.sleep(5)  # Retry setelah 5 detik
+                await asyncio.sleep(5)
 
 if __name__ == "__main__":
     logger.debug("Menjalankan script websocket_gateio.py")
@@ -89,6 +90,7 @@ if __name__ == "__main__":
     async def message_handler(message):
         logger.info(f"Handling message: {message}")
 
-    ws = GateIOWebSocket(message_handler)
+    pairs = ["BTC_USDT", "ETH_USDT", "SOL_USDT"]
+    ws = GateIOWebSocket(message_handler, pairs)
     
     asyncio.run(ws.run())

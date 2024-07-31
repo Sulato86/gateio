@@ -3,7 +3,6 @@ import asyncio
 import pytz
 import os
 import sys
-import signal
 from datetime import datetime
 from PyQt5.QtCore import QThread, pyqtSignal
 from PyQt5.QtGui import QStandardItem
@@ -25,11 +24,11 @@ class WebSocketWorker(QThread):
     balance_received = pyqtSignal(list)
 
     # Inisialisasi GateIOWebSocket
-    def __init__(self):
+    def __init__(self, pairs=None):
         super().__init__()
-        self.gateio_ws = GateIOWebSocket(self.send_message_to_ui)
+        self.gateio_ws = GateIOWebSocket(self.send_message_to_ui, pairs)
         self.loop = None
-        logger.debug("WebSocketWorker initialized")
+        logger.debug("WebSocketWorker initialized with pairs: %s", pairs)
 
     # Method untuk menjalankan thread
     def run(self):
@@ -61,6 +60,8 @@ class WebSocketWorker(QThread):
             if all(key in result for key in required_keys):
                 if 'time' not in message:
                     logger.warning(f"Message missing 'time': {result}")
+                currency_pair = result.get('currency_pair', 'unknown')
+                logger.info(f"Message for pair {currency_pair} received")
                 self.message_received.emit(message)
             else:
                 logger.error(f"Message missing expected keys: {message}")
@@ -73,13 +74,11 @@ class WebSocketWorker(QThread):
             logger.debug("Event loop stop called")
 
 class TickerTableUpdater:
-    # Inisialisasi TickerTableUpdater
     def __init__(self, model, row_mapping):
         self.model = model
         self.row_mapping = row_mapping
         logger.debug("TickerTableUpdater initialized")
 
-    # Method untuk memperbarui tabel ticker
     def update_ticker_table(self, message):
         logger.debug(f"Received message for ticker update: {message}")
         ticker_data = message.get('result', {})
@@ -92,13 +91,14 @@ class TickerTableUpdater:
 
             currency_pair = ticker_data['currency_pair']
             change_percentage = float(ticker_data['change_percentage'])
-            last_price = float(ticker_data['last'])
+            last_price = (ticker_data['last'])
             volume = ticker_data.get('base_volume', 0.0)
             volume = float(volume) if volume is not None else 0.0
 
             change_percentage = f"{change_percentage:.1f}"
-            last_price = f"{last_price:.2f}"
             volume = f"{volume:.2f}"
+
+            logger.info(f"Updating ticker table for {currency_pair}")
 
             if currency_pair in self.row_mapping:
                 row_index = self.row_mapping[currency_pair]
@@ -118,5 +118,7 @@ class TickerTableUpdater:
                 last_price_item = QStandardItem(last_price)
                 volume_item = QStandardItem(volume)
                 self.model.appendRow([time_item, currency_pair_item, change_percentage_item, last_price_item, volume_item])
+                logger.debug(f"Row added for {currency_pair}")
         else:
             logger.error(f"Missing expected keys in data: {ticker_data}")
+
