@@ -1,6 +1,6 @@
 import sys
 import logging
-import json
+import sqlite3
 from PyQt5.QtWidgets import QApplication, QMainWindow, QHeaderView
 from PyQt5.QtGui import QStandardItemModel, QStandardItem
 from control.websocket_worker import WebSocketWorker, TickerTableUpdater
@@ -15,6 +15,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def __init__(self, pairs=None):
         super().__init__()
         self.setupUi(self)
+
+        # Setup database connection
+        self.conn = sqlite3.connect('pairs.db')
+        self.create_table()
 
         # Dictionary untuk melacak baris pasangan mata uang
         self.row_mapping = {}
@@ -35,6 +39,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.ticker_updater = TickerTableUpdater(self.market_model, self.row_mapping)
 
         # Menjalankan thread websocket pada worker.py
+        pairs = self.load_pairs()
         self.websocket_thread = WebSocketWorker(pairs)
         self.websocket_thread.message_received.connect(self.ticker_updater.update_ticker_table)
         logger.info("Starting WebSocket thread")
@@ -51,28 +56,40 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # Tampilkan pasangan mata uang yang sudah ada saat inisialisasi
         self.update_pairs_display(pairs)
 
+    def create_table(self):
+        cursor = self.conn.cursor()
+        cursor.execute('''CREATE TABLE IF NOT EXISTS pairs (name TEXT UNIQUE)''')
+        self.conn.commit()
+
     def add_pair(self):
-        pair = self.lineEdit_addpair.text()
+        pair = self.lineEdit_addpair.text().upper()
         if pair and pair not in self.websocket_thread.gateio_ws.pairs:
+            logger.info(f"Adding pair: {pair}")
             self.websocket_thread.gateio_ws.pairs.append(pair)
             self.websocket_thread.add_pair(pair)
-            self.save_pairs()
+            self.save_pair(pair)
             self.update_pairs_display([pair])
             self.lineEdit_addpair.clear()
+        else:
+            logger.info(f"Pair {pair} already exists or is invalid.")
 
-    def save_pairs(self):
-        with open('pairs.json', 'w') as file:
-            json.dump(self.websocket_thread.gateio_ws.pairs, file)
+    def save_pair(self, pair):
+        cursor = self.conn.cursor()
+        cursor.execute('INSERT OR IGNORE INTO pairs (name) VALUES (?)', (pair,))
+        self.conn.commit()
+        logger.info(f"Pair {pair} saved to database.")
 
-    @staticmethod
-    def load_pairs():
-        try:
-            with open('pairs.json', 'r') as file:
-                return json.load(file)
-        except (FileNotFoundError, json.JSONDecodeError):
-            return []
+    def load_pairs(self):
+        cursor = self.conn.cursor()
+        cursor.execute('SELECT name FROM pairs')
+        pairs = [row[0] for row in cursor.fetchall()]
+        logger.info(f"Loaded pairs from database: {pairs}")
+        return pairs
 
-    def update_pairs_display(self, pairs):
+    def update_pairs_display(self, pairs=None):
+        if pairs is None:
+            pairs = self.websocket_thread.gateio_ws.pairs
+
         for pair in pairs:
             if pair not in self.row_mapping:
                 row_index = self.market_model.rowCount()
@@ -84,6 +101,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                     QStandardItem(""), 
                     QStandardItem("")
                 ])
+                logger.info(f"Added pair {pair} to tableView_marketdata at row {row_index}")
 
     def update_market_data(self, data):
         logger.debug(f"Market data updated: {data}")
@@ -91,12 +109,15 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def update_account_view(self, account_model):
         self.tableView_accountdata.setModel(account_model)
 
+    def closeEvent(self, event):
+        self.conn.close()
+        event.accept()
+
 if __name__ == "__main__":
     logger.info("Starting application")
 
-    pairs = MainWindow.load_pairs()
     app = QApplication(sys.argv)
-    window = MainWindow(pairs)
+    window = MainWindow()
     window.show()
     sys.exit(app.exec_())
 

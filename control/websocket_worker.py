@@ -7,6 +7,7 @@ from datetime import datetime
 from PyQt5.QtCore import QThread, pyqtSignal, pyqtSlot
 from PyQt5.QtGui import QStandardItem, QStandardItemModel
 
+
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from api.websocket_gateio import GateIOWebSocket
 
