@@ -26,8 +26,8 @@ class HTTPWorker(QObject):
     data_ready = pyqtSignal(QStandardItemModel)
 
     def __init__(self):
-        # Inisialisasi GateIOAPI
         super().__init__()
+        # Inisialisasi GateIOAPI
         self.api = GateIOAPI(api_client)
         self.account_model = QStandardItemModel()
         self.account_model.setHorizontalHeaderLabels(['ASSET', 'FREE', 'LOCKED'])
@@ -50,10 +50,13 @@ class HTTPWorker(QObject):
         # Memperbarui model akun dengan saldo yang diambil
         logger.info("Updating account model with fetched balances.")
         self.account_model.setRowCount(0)  # Clear the model
-        for balance in balances:
-            # Creating QStandardItem for each attribute and adding to the model
-            items = [QStandardItem(str(getattr(balance, attr))) for attr in ['currency', 'available', 'locked']]
-            self.account_model.appendRow(items)
-        logger.debug(f"Account model updated with {len(balances)} balances.")
+
+        # Memproses saldo dari berbagai jenis akun jika ada
+        for balance_type, balance_list in balances.items():
+            for balance in balance_list:
+                items = [QStandardItem(str(getattr(balance, attr))) for attr in ['currency', 'available', 'locked']]
+                self.account_model.appendRow(items)
+
+        logger.debug(f"Account model updated with {sum(len(b) for b in balances.values())} balances.")
         self.data_ready.emit(self.account_model)  # Emit signal indicating data is ready
         logger.info("Data ready signal emitted.")

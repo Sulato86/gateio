@@ -1,7 +1,9 @@
 import os
 import logging
 from dotenv import load_dotenv
-from gate_api import Configuration, ApiClient, SpotApi
+from gate_api import Configuration, ApiClient, SpotApi, MarginApi
+from tenacity import retry, stop_after_attempt, wait_fixed
+from cachetools import cached, TTLCache
 
 # Load environment variables from .env file
 load_dotenv()
@@ -36,22 +38,36 @@ if not api_key or not api_secret:
 configuration = Configuration(key=api_key, secret=api_secret)
 api_client = ApiClient(configuration=configuration)
 
+# Caching
+cache = TTLCache(maxsize=100, ttl=300)  # cache 100 items, TTL 300 seconds
+
 class GateIOAPI:
     def __init__(self, api_client):
         logger.debug("Inisialisasi GateIOAPI")
         self.api_client = api_client
         self.spot_api = SpotApi(api_client)
+        self.margin_api = MarginApi(api_client)  # Jika Anda membutuhkan API margin
 
+    @cached(cache)
+    @retry(stop=stop_after_attempt(3), wait=wait_fixed(2))
     def get_balances(self):
         logger.debug("Memanggil get_balances")
         try:
-            balances = self.spot_api.list_spot_accounts()
-            logger.info(f"Balances retrieved: {balances}")
-            return balances
+            spot_balances = self.spot_api.list_spot_accounts()
+            # Tambahkan pemanggilan endpoint lain untuk jenis akun lainnya jika perlu
+            # Misalnya, margin_balances = self.margin_api.list_margin_accounts()
+            
+            logger.info("Balances retrieved successfully")
+            return {
+                'spot': spot_balances,
+                # 'margin': margin_balances,
+                # Tambahkan data lainnya sesuai kebutuhan
+            }
         except Exception as e:
             logger.error(f"Error getting balances: {e}")
-            return None
+            raise
 
+    @retry(stop=stop_after_attempt(3), wait=wait_fixed(2))
     def get_order_history(self, currency_pair):
         logger.debug(f"Memanggil get_order_history untuk pasangan mata uang {currency_pair}")
         try:
@@ -60,8 +76,9 @@ class GateIOAPI:
             return orders
         except Exception as e:
             logger.error(f"Error getting order history: {e}")
-            return None
+            raise
 
+    @retry(stop=stop_after_attempt(3), wait=wait_fixed(2))
     def cancel_order(self, currency_pair, order_id):
         logger.debug(f"Membatalkan order dengan currency_pair: {currency_pair}, order_id: {order_id}")
         try:
@@ -70,7 +87,7 @@ class GateIOAPI:
             return response
         except Exception as e:
             logger.error(f"Error canceling order: {e}")
-            return None
+            raise
 
 if __name__ == "__main__":
     logger.debug("Menjalankan script api_gateio.py")
@@ -78,8 +95,11 @@ if __name__ == "__main__":
     api = GateIOAPI(api_client)
     
     # Contoh menjalankan fungsi get_balances
-    balances = api.get_balances()
-    if balances:
-        logger.info(f"Balances: {balances}")
-    else:
-        logger.warning("Balances tidak ditemukan atau gagal diambil")
+    try:
+        balances = api.get_balances()
+        if balances:
+            logger.info(f"Balances: {balances}")
+        else:
+            logger.warning("Balances tidak ditemukan atau gagal diambil")
+    except Exception as e:
+        logger.error(f"Gagal mendapatkan balances: {e}")
