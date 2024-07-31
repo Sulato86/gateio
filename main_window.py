@@ -1,17 +1,17 @@
 import sys
 import logging
 from PyQt5.QtWidgets import QApplication, QMainWindow, QHeaderView
-from PyQt5.QtGui import QStandardItemModel, QStandardItem
-from control.worker import WebSocketWorker, TickerTableUpdater
+from PyQt5.QtGui import QStandardItemModel
+from control.websocket_worker import WebSocketWorker, TickerTableUpdater
 from control.logging_config import setup_logging
 from ui.ui_main_window import Ui_MainWindow
+from control.http_worker import HTTPWorker
 
 # Inisialisasi logger dengan file log terpisah
 logger = setup_logging('main_window.log')
 
 class MainWindow(QMainWindow, Ui_MainWindow):
     def __init__(self):
-        # Inisialisasi kelas MainWindow yang mengatur UI.
         super().__init__()
         self.setupUi(self)
 
@@ -39,8 +39,17 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         logger.info("Starting WebSocket thread")
         self.websocket_thread.start()
 
+        # Inisialisasi HTTPWorker
+        self.http_worker = HTTPWorker()
+        self.http_worker.data_ready.connect(self.update_account_view)
+        self.http_worker.fetch_balances()
+
+    def update_account_view(self, account_model):
+        self.tableView_accountdata.setModel(account_model)
+
 if __name__ == "__main__":
     logger.info("Starting application")
+
     app = QApplication(sys.argv)
     window = MainWindow()
     window.show()

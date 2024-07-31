@@ -3,33 +3,43 @@ import asyncio
 import pytz
 import os
 import sys
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+import signal
+from datetime import datetime
 from PyQt5.QtCore import QThread, pyqtSignal
 from PyQt5.QtGui import QStandardItem
+
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from api.websocket_gateio import GateIOWebSocket
-from datetime import datetime
 
 # Inisialisasi logger
-logger = logging.getLogger('worker')
+logger = logging.getLogger('websocket_worker')
 logger.setLevel(logging.DEBUG)
-handler = logging.FileHandler('worker.log')
+handler = logging.FileHandler('websocket_worker.log')
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 
 class WebSocketWorker(QThread):
+    # Signal untuk mengirimkan pesan ke UI
     message_received = pyqtSignal(dict)
     balance_received = pyqtSignal(list)
 
+    # Inisialisasi GateIOWebSocket
     def __init__(self):
         super().__init__()
         self.gateio_ws = GateIOWebSocket(self.send_message_to_ui)
+        self.loop = None
+        logger.debug("WebSocketWorker initialized")
 
+    # Method untuk menjalankan thread
     def run(self):
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        loop.run_until_complete(self.connect())
+        logger.debug("WebSocketWorker thread started")
+        self.loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(self.loop)
+        self.loop.run_until_complete(self.connect())
+        logger.debug("Event loop has finished")
 
+    # Method untuk membuat koneksi ke WebSocket
     async def connect(self):
         while True:
             try:
@@ -38,7 +48,9 @@ class WebSocketWorker(QThread):
             except Exception as e:
                 logger.error(f"WebSocket connection error: {e}")
                 await asyncio.sleep(5)
+                logger.info("Retrying WebSocket connection in 5 seconds")
 
+    # Method untuk mengirimkan pesan ke UI
     def send_message_to_ui(self, message):
         logger.debug(f"Emitting message to UI: {message}")
         channel = message.get('channel')
@@ -54,11 +66,20 @@ class WebSocketWorker(QThread):
                 logger.error(f"Message missing expected keys: {message}")
                 logger.error(f"Complete message: {message}")
 
+    # Method untuk menghentikan thread
+    def stop(self):
+        if self.loop:
+            self.loop.call_soon_threadsafe(self.loop.stop)
+            logger.debug("Event loop stop called")
+
 class TickerTableUpdater:
+    # Inisialisasi TickerTableUpdater
     def __init__(self, model, row_mapping):
         self.model = model
         self.row_mapping = row_mapping
+        logger.debug("TickerTableUpdater initialized")
 
+    # Method untuk memperbarui tabel ticker
     def update_ticker_table(self, message):
         logger.debug(f"Received message for ticker update: {message}")
         ticker_data = message.get('result', {})
@@ -81,6 +102,7 @@ class TickerTableUpdater:
 
             if currency_pair in self.row_mapping:
                 row_index = self.row_mapping[currency_pair]
+                logger.debug(f"Updating existing row for {currency_pair} at index {row_index}")
                 self.model.setItem(row_index, 0, QStandardItem(str(time)))
                 self.model.setItem(row_index, 1, QStandardItem(currency_pair))
                 self.model.setItem(row_index, 2, QStandardItem(change_percentage))
@@ -88,6 +110,7 @@ class TickerTableUpdater:
                 self.model.setItem(row_index, 4, QStandardItem(volume))
             else:
                 row_index = self.model.rowCount()
+                logger.debug(f"Inserting new row for {currency_pair} at index {row_index}")
                 self.row_mapping[currency_pair] = row_index
                 time_item = QStandardItem(str(time))
                 currency_pair_item = QStandardItem(currency_pair)
@@ -97,4 +120,3 @@ class TickerTableUpdater:
                 self.model.appendRow([time_item, currency_pair_item, change_percentage_item, last_price_item, volume_item])
         else:
             logger.error(f"Missing expected keys in data: {ticker_data}")
-

@@ -1,5 +1,3 @@
-# websocket_gateio.py
-
 import json
 import asyncio
 import websockets
@@ -25,11 +23,13 @@ logger.addHandler(file_handler)
 logger.addHandler(console_handler)
 
 class GateIOWebSocket:
+    # Inisialisasi GateIOWebSocket
     def __init__(self, message_callback):
         logger.debug("Inisialisasi GateIOWebSocket")
         self.message_callback = message_callback
         self.ws_url = "wss://api.gateio.ws/ws/v4/"
 
+    # Method untuk menghandle pesan yang diterima
     async def on_message(self, message):
         logger.debug("on_message dipanggil")
         try:
@@ -42,17 +42,21 @@ class GateIOWebSocket:
         except json.JSONDecodeError as e:
             logger.error(f"JSON decode error: {e}")
 
+    # Method untuk menghandle error
     async def on_error(self, error):
         logger.error(f"WebSocket error: {error}")
 
+    # Method untuk menghandle penutupan koneksi
     async def on_close(self):
         logger.info("WebSocket closed")
 
+    # Method yang dipanggil saat koneksi WebSocket dibuka
     async def on_open(self, websocket):
         logger.info("WebSocket opened")
         await self.subscribe(websocket, "spot.tickers", ["BTC_USDT", "ETH_USDT", "SOL_USDT"])
         logger.info("Subscribed to multiple channels")
 
+    # Method untuk subscribe ke channel
     async def subscribe(self, websocket, channel, params):
         message = {
             "time": int(time.time()),
@@ -63,6 +67,7 @@ class GateIOWebSocket:
         logger.debug(f"Subscribing with message: {message}")
         await websocket.send(json.dumps(message))
 
+    # Method untuk menjalankan loop WebSocket
     async def run(self):
         logger.debug("Memulai websocket run loop")
         while True:
