@@ -2,6 +2,7 @@ import logging
 from PyQt5.QtCore import QObject, pyqtSignal
 from PyQt5.QtGui import QStandardItem, QStandardItemModel
 from api.api_gateio import GateIOAPI, api_client
+from decimal import Decimal  # Import modul Decimal
 
 # Inisialisasi logger
 logger = logging.getLogger('http_worker')
@@ -9,7 +10,7 @@ logger.setLevel(logging.DEBUG)
 
 # Handler untuk file logging
 file_handler = logging.FileHandler('http_worker.log')
-file_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+file_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levellevel)s - %(message)s')
 file_handler.setFormatter(file_formatter)
 
 # Handler untuk console logging
@@ -54,7 +55,12 @@ class HTTPWorker(QObject):
         # Memproses saldo dari berbagai jenis akun jika ada
         for balance_type, balance_list in balances.items():
             for balance in balance_list:
-                items = [QStandardItem(str(getattr(balance, attr))) for attr in ['currency', 'available', 'locked']]
+                # Creating QStandardItem for each attribute and adding to the model
+                items = [
+                    QStandardItem(str(getattr(balance, 'currency'))),
+                    QStandardItem(format(Decimal(getattr(balance, 'available')), '.2f')),
+                    QStandardItem(format(Decimal(getattr(balance, 'locked')), '.2f'))
+                ]
                 self.account_model.appendRow(items)
 
         logger.debug(f"Account model updated with {sum(len(b) for b in balances.values())} balances.")
