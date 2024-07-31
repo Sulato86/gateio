@@ -74,19 +74,6 @@
      <string>IMPORT CSV</string>
     </property>
    </widget>
-   <widget class="QPushButton" name="pushButton_export">
-    <property name="geometry">
-     <rect>
-      <x>10</x>
-      <y>760</y>
-      <width>121</width>
-      <height>41</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>EXPORT CSV</string>
-    </property>
-   </widget>
    <widget class="QLabel" name="label">
     <property name="geometry">
      <rect>

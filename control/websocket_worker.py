@@ -3,8 +3,8 @@ import asyncio
 from PyQt5.QtCore import QThread, pyqtSignal, pyqtSlot
 from PyQt5.QtGui import QStandardItem, QStandardItemModel
 from api.websocket_gateio import GateIOWebSocket
-from datetime import datetime
-import pytz
+from datetime import datetime, timezone
+import time as time_module
 
 # Inisialisasi logger
 logger = logging.getLogger('websocket_worker')
@@ -65,9 +65,17 @@ class WebSocketWorker(QThread):
         if pair not in self.gateio_ws.pairs:
             self.gateio_ws.pairs.append(pair)
             logger.debug(f"Pair {pair} added to the list, attempting to subscribe.")
-            asyncio.run_coroutine_threadsafe(self.gateio_ws.subscribe_to_pair(pair), self.loop)
+            future = asyncio.run_coroutine_threadsafe(self.gateio_ws.subscribe_to_pair(pair), self.loop)
+            future.add_done_callback(self._handle_subscribe_result)
         else:
             logger.info(f"Pair {pair} already exists.")
+
+    def _handle_subscribe_result(self, future):
+        try:
+            result = future.result()
+            logger.info(f"Subscription result: {result}")
+        except Exception as e:
+            logger.error(f"Subscription error: {e}")
 
 class TickerTableUpdater:
     def __init__(self, model, row_mapping):
@@ -82,8 +90,8 @@ class TickerTableUpdater:
 
         if all(key in ticker_data for key in required_keys):
             epoch_time = message.get('time', 0)
-            singapore_tz = pytz.timezone('Asia/Singapore')
-            time = datetime.fromtimestamp(epoch_time, singapore_tz).strftime('%d-%m-%Y %H:%M:%S')
+            local_time = datetime.fromtimestamp(epoch_time, timezone.utc).astimezone()
+            time_str = local_time.strftime('%d-%m-%Y %H:%M:%S')
 
             currency_pair = ticker_data['currency_pair']
             change_percentage = float(ticker_data['change_percentage'])
@@ -99,7 +107,7 @@ class TickerTableUpdater:
             if currency_pair in self.row_mapping:
                 row_index = self.row_mapping[currency_pair]
                 logger.debug(f"Updating existing row for {currency_pair} at index {row_index}")
-                self.model.setItem(row_index, 0, QStandardItem(str(time)))
+                self.model.setItem(row_index, 0, QStandardItem(str(time_str)))
                 self.model.setItem(row_index, 1, QStandardItem(currency_pair))
                 self.model.setItem(row_index, 2, QStandardItem(change_percentage))
                 self.model.setItem(row_index, 3, QStandardItem(last_price))
@@ -108,7 +116,7 @@ class TickerTableUpdater:
                 row_index = self.model.rowCount()
                 logger.debug(f"Inserting new row for {currency_pair} at index {row_index}")
                 self.row_mapping[currency_pair] = row_index
-                time_item = QStandardItem(str(time))
+                time_item = QStandardItem(str(time_str))
                 currency_pair_item = QStandardItem(currency_pair)
                 change_percentage_item = QStandardItem(change_percentage)
                 last_price_item = QStandardItem(last_price)

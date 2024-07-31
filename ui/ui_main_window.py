@@ -48,9 +48,6 @@ class Ui_MainWindow(object):
         self.pushButton_importmarketdata = QtWidgets.QPushButton(self.centralwidget)
         self.pushButton_importmarketdata.setGeometry(QtCore.QRect(140, 760, 121, 41))
         self.pushButton_importmarketdata.setObjectName("pushButton_importmarketdata")
-        self.pushButton_export = QtWidgets.QPushButton(self.centralwidget)
-        self.pushButton_export.setGeometry(QtCore.QRect(10, 760, 121, 41))
-        self.pushButton_export.setObjectName("pushButton_export")
         self.label = QtWidgets.QLabel(self.centralwidget)
         self.label.setGeometry(QtCore.QRect(30, 730, 101, 21))
         font = QtGui.QFont()
@@ -90,7 +87,6 @@ class Ui_MainWindow(object):
         _translate = QtCore.QCoreApplication.translate
         MainWindow.setWindowTitle(_translate("MainWindow", "MainWindow"))
         self.pushButton_importmarketdata.setText(_translate("MainWindow", "IMPORT CSV"))
-        self.pushButton_export.setText(_translate("MainWindow", "EXPORT CSV"))
         self.label.setText(_translate("MainWindow", "ADD PAIR >"))
         self.menuMenu.setTitle(_translate("MainWindow", "Menu"))
         self.actionImpor_API.setText(_translate("MainWindow", "Impor API"))
