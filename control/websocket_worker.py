@@ -1,10 +1,7 @@
 import logging
 import asyncio
 from PyQt5.QtCore import QThread, pyqtSignal, pyqtSlot
-from PyQt5.QtGui import QStandardItem, QStandardItemModel
 from api.websocket_gateio import GateIOWebSocket
-from datetime import datetime, timezone
-import time as time_module
 
 # Inisialisasi logger
 logger = logging.getLogger('websocket_worker')
@@ -77,53 +74,3 @@ class WebSocketWorker(QThread):
             logger.info(f"Subscription result: {result}")
         except Exception as e:
             logger.error(f"Subscription error: {e}")
-
-class TickerTableUpdater:
-    def __init__(self, model, row_mapping):
-        self.model = model
-        self.row_mapping = row_mapping
-        logger.debug("TickerTableUpdater initialized")
-
-    def update_ticker_table(self, message):
-        logger.debug(f"Received message for ticker update: {message}")
-        ticker_data = message.get('result', {})
-        required_keys = ['currency_pair', 'change_percentage', 'last', 'base_volume']
-
-        if all(key in ticker_data for key in required_keys):
-            epoch_time = message.get('time', 0)
-            local_time = datetime.fromtimestamp(epoch_time, timezone.utc).astimezone()
-            time_str = local_time.strftime('%d-%m-%Y %H:%M:%S')
-
-            currency_pair = ticker_data['currency_pair']
-            change_percentage = float(ticker_data['change_percentage'])
-            last_price = ticker_data['last']
-            volume = ticker_data.get('base_volume', 0.0)
-            volume = float(volume) if volume is not None else 0.0
-
-            change_percentage = f"{change_percentage:.1f}"
-            volume = f"{volume:.2f}"
-
-            logger.info(f"Updating ticker table for {currency_pair}")
-
-            if currency_pair in self.row_mapping:
-                row_index = self.row_mapping[currency_pair]
-                logger.debug(f"Updating existing row for {currency_pair} at index {row_index}")
-                self.model.setItem(row_index, 0, QStandardItem(str(time_str)))
-                self.model.setItem(row_index, 1, QStandardItem(currency_pair))
-                self.model.setItem(row_index, 2, QStandardItem(change_percentage))
-                self.model.setItem(row_index, 3, QStandardItem(last_price))
-                self.model.setItem(row_index, 4, QStandardItem(volume))
-            else:
-                row_index = self.model.rowCount()
-                logger.debug(f"Inserting new row for {currency_pair} at index {row_index}")
-                self.row_mapping[currency_pair] = row_index
-                time_item = QStandardItem(str(time_str))
-                currency_pair_item = QStandardItem(currency_pair)
-                change_percentage_item = QStandardItem(change_percentage)
-                last_price_item = QStandardItem(last_price)
-                volume_item = QStandardItem(volume)
-                self.model.appendRow([time_item, currency_pair_item, change_percentage_item, last_price_item, volume_item])
-                logger.debug(f"Row added for {currency_pair}")
-        else:
-            missing_keys = [key for key in required_keys if key not in ticker_data]
-            logger.error(f"Missing expected keys in data: {missing_keys}, data: {ticker_data}")

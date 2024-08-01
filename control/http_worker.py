@@ -63,10 +63,17 @@ class HTTPWorker(QObject):
             for balance in balance_list:
                 # Akses atribut langsung dari objek balance
                 if hasattr(balance, 'currency') and hasattr(balance, 'available') and hasattr(balance, 'locked'):
+                    available_balance = Decimal(balance.available)
+                    locked_balance = Decimal(balance.locked)
+                    
+                    # Sembunyikan saldo jika available dan locked kurang dari 1
+                    if available_balance < 1 and locked_balance < 1:
+                        continue
+
                     items = [
                         QStandardItem(str(balance.currency)),
-                        QStandardItem(format(Decimal(balance.available), '.2f')),
-                        QStandardItem(format(Decimal(balance.locked), '.2f'))
+                        QStandardItem(format(available_balance, '.2f')),
+                        QStandardItem(format(locked_balance, '.2f'))
                     ]
                     self.account_model.appendRow(items)
 
