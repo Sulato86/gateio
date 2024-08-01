@@ -55,6 +55,8 @@ class CustomSortFilterProxyModel(QSortFilterProxyModel):
 class DataHandler(QObject):
     data_ready = pyqtSignal(QStandardItemModel)
     message_received = pyqtSignal(dict)
+    pair_added = pyqtSignal(str)
+    pair_deleted = pyqtSignal(str)
 
     def __init__(self):
         super().__init__()
@@ -93,6 +95,7 @@ class DataHandler(QObject):
             cursor.execute('INSERT OR IGNORE INTO pairs (name) VALUES (?)', (pair,))
             self.conn.commit()
             logger.info(f"Pair {pair} saved to database")
+            self.pair_added.emit(pair)  # Emit signal when a pair is added
         except sqlite3.Error as e:
             logger.error(f"Failed to add pair to database: {e}")
 
@@ -127,6 +130,7 @@ class DataHandler(QObject):
             cursor.execute('DELETE FROM pairs WHERE name = ?', (pair,))
             self.conn.commit()
             logger.info(f"Pair {pair} deleted from database")
+            self.pair_deleted.emit(pair)  # Emit signal when a pair is deleted
         except sqlite3.Error as e:
             logger.error(f"Failed to delete pair from database: {e}")
 
@@ -169,7 +173,7 @@ class TickerTableUpdater:
 
             logger.info(f"Updating ticker table for {currency_pair}")
 
-            if currency_pair in self.row_mapping:
+            if (currency_pair in self.row_mapping) and (self.row_mapping[currency_pair] < self.model.rowCount()):
                 row_index = self.row_mapping[currency_pair]
                 logger.debug(f"Updating existing row for {currency_pair} at index {row_index}")
                 self.model.setItem(row_index, 0, QStandardItem(str(time_str)))

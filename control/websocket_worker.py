@@ -68,9 +68,28 @@ class WebSocketWorker(QThread):
             logger.info(f"Pair {pair} already exists.")
         logger.debug(f"Current pairs: {self.gateio_ws.pairs}")
 
+    @pyqtSlot(str)
+    def remove_pair(self, pair):
+        logger.info(f"Removing pair: {pair}")
+        if pair in self.gateio_ws.pairs:
+            self.gateio_ws.pairs.remove(pair)
+            logger.debug(f"Pair {pair} removed from the list, attempting to unsubscribe.")
+            future = asyncio.run_coroutine_threadsafe(self.gateio_ws.unsubscribe_from_pair(pair), self.loop)
+            future.add_done_callback(self._handle_unsubscribe_result)
+        else:
+            logger.info(f"Pair {pair} does not exist.")
+        logger.debug(f"Current pairs: {self.gateio_ws.pairs}")
+
     def _handle_subscribe_result(self, future):
         try:
             result = future.result()
             logger.info(f"Subscription result: {result}")
         except Exception as e:
             logger.error(f"Subscription error: {e}")
+
+    def _handle_unsubscribe_result(self, future):
+        try:
+            result = future.result()
+            logger.info(f"Unsubscription result: {result}")
+        except Exception as e:
+            logger.error(f"Unsubscription error: {e}")
