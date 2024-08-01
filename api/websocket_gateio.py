@@ -94,6 +94,25 @@ class GateIOWebSocket:
                 logger.error("WebSocket is not connected. Adding to pending pairs.")
                 self.pending_pairs.append(pair)
 
+    # Method untuk unsubscribe dari pair
+    async def unsubscribe_from_pair(self, pair):
+        if pair in self.pairs:
+            self.pairs.remove(pair)
+            if self.websocket:
+                message = {
+                    "time": int(time.time()),
+                    "channel": "spot.tickers",
+                    "event": "unsubscribe",
+                    "payload": [pair]
+                }
+                logger.debug(f"Unsubscribing with message: {message}")
+                await self.websocket.send(json.dumps(message))
+                logger.info(f"Unsubscribed from pair: {pair}")
+            else:
+                logger.error("WebSocket is not connected. Cannot unsubscribe.")
+        else:
+            logger.warning(f"Pair {pair} is not in the list. Cannot unsubscribe.")
+
     # Method untuk menjalankan loop WebSocket
     async def run(self):
         logger.debug("Memulai websocket run loop")
