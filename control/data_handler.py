@@ -4,15 +4,39 @@ from PyQt5.QtCore import QObject, pyqtSignal, QSortFilterProxyModel
 from PyQt5.QtGui import QStandardItemModel, QStandardItem
 from datetime import datetime, timezone
 
+# Konfigurasi logging
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+
+# Buat handler untuk menulis log ke file
+file_handler = logging.FileHandler('data_handler.log')
+file_handler.setLevel(logging.DEBUG)
+
+# Buat handler untuk menulis log ke console
+console_handler = logging.StreamHandler()
+console_handler.setLevel(logging.DEBUG)
+
+# Buat formatter dan tambahkan ke handler
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+file_handler.setFormatter(formatter)
+console_handler.setFormatter(formatter)
+
+# Tambahkan handler ke logger
+logger.addHandler(file_handler)
+logger.addHandler(console_handler)
 
 class CustomSortFilterProxyModel(QSortFilterProxyModel):
     def lessThan(self, left, right):
-        # Kolom yang memerlukan sorting khusus (misalnya kolom 2 dan 3 untuk persentase perubahan dan harga)
-        columns_to_sort_as_numbers = [2, 3]
+        columns_to_sort_as_numbers = [2, 3]  # Kolom yang perlu sorting sebagai angka
 
         left_data = self.sourceModel().data(left)
         right_data = self.sourceModel().data(right)
+
+        # Jika data adalah None, anggap sebagai nilai yang lebih kecil dari angka lainnya
+        if left_data is None:
+            return True
+        if right_data is None:
+            return False
 
         # Coba mengubah data ke float untuk kolom yang perlu sorting numerik
         try:
@@ -37,40 +61,86 @@ class DataHandler(QObject):
         self.conn = self.create_connection('pairs.db')
         self.create_table(self.conn)
         self.row_mapping = {}
+        logger.info("DataHandler initialized")
 
     def create_connection(self, db_file):
         """Membuat koneksi ke database SQLite."""
-        conn = sqlite3.connect(db_file)
-        return conn
+        logger.debug(f"Creating connection to database: {db_file}")
+        try:
+            conn = sqlite3.connect(db_file)
+            logger.info("Connection to database established")
+            return conn
+        except sqlite3.Error as e:
+            logger.error(f"Failed to create connection: {e}")
+            return None
 
     def create_table(self, conn):
         """Membuat tabel 'pairs' dalam database jika belum ada."""
-        cursor = conn.cursor()
-        cursor.execute('''CREATE TABLE IF NOT EXISTS pairs (name TEXT UNIQUE)''')
-        conn.commit()
+        logger.debug("Creating table 'pairs' if it doesn't exist")
+        try:
+            cursor = conn.cursor()
+            cursor.execute('''CREATE TABLE IF NOT EXISTS pairs (name TEXT UNIQUE)''')
+            conn.commit()
+            logger.info("Table 'pairs' checked/created")
+        except sqlite3.Error as e:
+            logger.error(f"Failed to create table: {e}")
 
     def add_pair_to_db(self, pair):
         """Menyimpan pasangan mata uang ke database."""
-        cursor = self.conn.cursor()
-        cursor.execute('INSERT OR IGNORE INTO pairs (name) VALUES (?)', (pair,))
-        self.conn.commit()
-        logger.info(f"Pair {pair} saved to database.")
+        logger.debug(f"Adding pair to database: {pair}")
+        try:
+            cursor = self.conn.cursor()
+            cursor.execute('INSERT OR IGNORE INTO pairs (name) VALUES (?)', (pair,))
+            self.conn.commit()
+            logger.info(f"Pair {pair} saved to database")
+        except sqlite3.Error as e:
+            logger.error(f"Failed to add pair to database: {e}")
 
     def load_pairs(self):
         """Memuat semua pasangan mata uang dari database."""
-        cursor = self.conn.cursor()
-        cursor.execute('SELECT name FROM pairs')
-        pairs = [row[0] for row in cursor.fetchall()]
-        logger.info(f"Loaded pairs from database: {pairs}")
-        return pairs
+        logger.debug("Loading pairs from database")
+        try:
+            cursor = self.conn.cursor()
+            cursor.execute('SELECT name FROM pairs')
+            pairs = [row[0] for row in cursor.fetchall()]
+            logger.info(f"Loaded pairs from database: {pairs}")
+            return pairs
+        except sqlite3.Error as e:
+            logger.error(f"Failed to load pairs from database: {e}")
+            return []
 
     def fetch_balances(self, http_worker):
         """Meminta saldo dari HTTPWorker."""
+        logger.debug("Fetching balances using HTTPWorker")
         http_worker.fetch_balances()
 
     def validate_pair(self, http_worker, pair):
         """Memvalidasi pasangan mata uang dengan HTTPWorker."""
+        logger.debug(f"Validating pair: {pair}")
         return http_worker.validate_pair(pair)
+
+    def delete_pair_from_db(self, pair):
+        """Menghapus pasangan mata uang dari database."""
+        logger.debug(f"Deleting pair from database: {pair}")
+        try:
+            cursor = self.conn.cursor()
+            cursor.execute('DELETE FROM pairs WHERE name = ?', (pair,))
+            self.conn.commit()
+            logger.info(f"Pair {pair} deleted from database")
+        except sqlite3.Error as e:
+            logger.error(f"Failed to delete pair from database: {e}")
+
+    def delete_rows_by_column_value(self, model, column_index, value):
+        logger.debug(f"Deleting rows with value {value} in column {column_index}")
+        rows_to_remove = []
+        for row in range(model.rowCount()):
+            index = model.index(row, column_index)
+            if model.data(index) == value:
+                rows_to_remove.append(row)
+
+        for row in reversed(rows_to_remove):
+            model.removeRow(row)
+            logger.info(f"Row {row} with value {value} in column {column_index} removed")
 
 class TickerTableUpdater:
     def __init__(self, model, row_mapping):

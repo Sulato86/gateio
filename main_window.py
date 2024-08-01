@@ -1,8 +1,8 @@
 import sys
 import logging
-from PyQt5.QtWidgets import QApplication, QMainWindow, QHeaderView, QMessageBox
+from PyQt5.QtWidgets import QApplication, QMainWindow, QHeaderView, QMessageBox, QMenu
 from PyQt5.QtGui import QStandardItemModel, QStandardItem
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QPoint
 from control.logging_config import setup_logging
 from ui.ui_main_window import Ui_MainWindow
 from control.data_handler import DataHandler, TickerTableUpdater, CustomSortFilterProxyModel
@@ -67,8 +67,38 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # Tampilkan pasangan mata uang yang sudah ada saat inisialisasi
         self.update_pairs_display(pairs)
 
+        # Tambahkan event handler untuk klik kanan pada tableView_marketdata
+        self.tableView_marketdata.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.tableView_marketdata.customContextMenuRequested.connect(self.show_context_menu)
+
+    def show_context_menu(self, position: QPoint):
+        menu = QMenu()
+        delete_action = menu.addAction("Delete Row")
+        action = menu.exec_(self.tableView_marketdata.viewport().mapToGlobal(position))
+        
+        if action == delete_action:
+            index = self.tableView_marketdata.indexAt(position)
+            if index.isValid():
+                pair = self.market_model.data(self.market_model.index(index.row(), 1))  # Asumsikan kolom 1 adalah pasangan mata uang
+                self.delete_row_by_value(index.column(), index.data(), pair)
+
+    def delete_row_by_value(self, column_index, value, pair):
+        self.data_handler.delete_rows_by_column_value(self.market_model, column_index, value)
+        self.proxy_model.invalidate()
+        self.data_handler.delete_pair_from_db(pair)
+        self.restart_websocket_worker()
+
+    def restart_websocket_worker(self):
+        logger.info("Restarting WebSocket worker")
+        self.websocket_thread.stop()
+        self.websocket_thread.wait()
+        pairs = self.data_handler.load_pairs()
+        self.websocket_thread = WebSocketWorker(pairs)
+        self.websocket_thread.message_received.connect(self.ticker_updater.update_ticker_table)
+        self.websocket_thread.start()
+        self.update_pairs_display(pairs)
+
     def add_pair(self):
-        """Menambahkan pasangan mata uang baru ke database dan WebSocket."""
         pair = self.lineEdit_addpair.text().upper()
         if pair and pair not in self.websocket_thread.gateio_ws.pairs:
             if self.data_handler.validate_pair(self.http_worker, pair):
@@ -84,7 +114,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             logger.info(f"Pair {pair} already exists or is invalid.")
 
     def update_pairs_display(self, pairs=None):
-        """Memperbarui tampilan pasangan mata uang di tableView_marketdata."""
         if pairs is None:
             pairs = self.websocket_thread.gateio_ws.pairs
 
@@ -102,27 +131,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 logger.info(f"Added pair {pair} to tableView_marketdata at row {row_index}")
 
     def update_market_data(self, data):
-        """Meng-update data pasar (market data) di tableView_marketdata."""
         logger.debug(f"Market data updated: {data}")
 
     def update_account_view(self, account_model):
-        """Meng-update tampilan data akun di tableView_accountdata."""
         logger.info("Updating account view with new data.")
         self.tableView_accountdata.setModel(account_model)
 
-    def restart_websocket_worker(self):
-        """Merestart ulang WebSocket worker dengan pasangan mata uang baru."""
-        logger.info("Restarting WebSocket worker")
-        self.websocket_thread.stop()
-        self.websocket_thread.wait()
-        pairs = self.data_handler.load_pairs()
-        self.websocket_thread = WebSocketWorker(pairs)
-        self.websocket_thread.message_received.connect(self.ticker_updater.update_ticker_table)
-        self.websocket_thread.start()
-        self.update_pairs_display(pairs)
-
     def closeEvent(self, event):
-        """Menangani event penutupan aplikasi, memastikan koneksi dan thread ditutup dengan benar."""
         self.data_handler.conn.close()
         self.websocket_thread.stop()
         self.websocket_thread.wait()
@@ -136,5 +151,4 @@ if __name__ == "__main__":
     window.show()
     sys.exit(app.exec_())
 
-    # Flush and close file handlers
     logging.shutdown()
