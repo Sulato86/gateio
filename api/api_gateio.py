@@ -39,14 +39,13 @@ configuration = Configuration(key=api_key, secret=api_secret)
 api_client = ApiClient(configuration=configuration)
 
 # Caching
-cache = TTLCache(maxsize=100, ttl=300)  # cache 100 items, TTL 300 seconds
-
+cache = TTLCache(maxsize=10, ttl=5)
 class GateIOAPI:
     def __init__(self, api_client):
         logger.debug("Inisialisasi GateIOAPI")
         self.api_client = api_client
         self.spot_api = SpotApi(api_client)
-        self.margin_api = MarginApi(api_client)  # Jika Anda membutuhkan API margin
+        self.margin_api = MarginApi(api_client)
 
     @cached(cache)
     @retry(stop=stop_after_attempt(3), wait=wait_fixed(2))

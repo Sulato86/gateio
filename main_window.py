@@ -58,11 +58,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.update_pairs_display(pairs)
 
     def create_table(self):
+        """Membuat tabel 'pairs' dalam database jika belum ada."""
         cursor = self.conn.cursor()
         cursor.execute('''CREATE TABLE IF NOT EXISTS pairs (name TEXT UNIQUE)''')
         self.conn.commit()
 
     def add_pair(self):
+        """Menambahkan pasangan mata uang baru ke database dan WebSocket."""
         pair = self.lineEdit_addpair.text().upper()
         if pair and pair not in self.websocket_thread.gateio_ws.pairs:
             logger.info(f"Adding pair: {pair}")
@@ -75,12 +77,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             logger.info(f"Pair {pair} already exists or is invalid.")
 
     def save_pair(self, pair):
+        """Menyimpan pasangan mata uang ke database."""
         cursor = self.conn.cursor()
         cursor.execute('INSERT OR IGNORE INTO pairs (name) VALUES (?)', (pair,))
         self.conn.commit()
         logger.info(f"Pair {pair} saved to database.")
 
     def load_pairs(self):
+        """Memuat semua pasangan mata uang dari database."""
         cursor = self.conn.cursor()
         cursor.execute('SELECT name FROM pairs')
         pairs = [row[0] for row in cursor.fetchall()]
@@ -88,6 +92,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         return pairs
 
     def update_pairs_display(self, pairs=None):
+        """Memperbarui tampilan pasangan mata uang di tableView_marketdata."""
         if pairs is None:
             pairs = self.websocket_thread.gateio_ws.pairs
 
@@ -105,12 +110,16 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 logger.info(f"Added pair {pair} to tableView_marketdata at row {row_index}")
 
     def update_market_data(self, data):
+        """Meng-update data pasar (market data) di tableView_marketdata."""
         logger.debug(f"Market data updated: {data}")
 
     def update_account_view(self, account_model):
+        """Meng-update tampilan data akun di tableView_accountdata."""
+        logger.info("Updating account view with new data.")
         self.tableView_accountdata.setModel(account_model)
 
     def restart_websocket_worker(self):
+        """Merestart ulang WebSocket worker dengan pasangan mata uang baru."""
         logger.info("Restarting WebSocket worker")
         self.websocket_thread.stop()
         self.websocket_thread.wait()
@@ -120,6 +129,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.websocket_thread.start()
 
     def closeEvent(self, event):
+        """Menangani event penutupan aplikasi, memastikan koneksi dan thread ditutup dengan benar."""
         self.conn.close()
         self.websocket_thread.stop()
         self.websocket_thread.wait()
