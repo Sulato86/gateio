@@ -68,9 +68,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         pair = self.lineEdit_addpair.text().upper()
         if pair and pair not in self.websocket_thread.gateio_ws.pairs:
             logger.info(f"Adding pair: {pair}")
-            self.websocket_thread.gateio_ws.pairs.append(pair)
             self.save_pair(pair)
-            self.update_pairs_display([pair])
             self.lineEdit_addpair.clear()
             self.restart_websocket_worker()
         else:
@@ -127,6 +125,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.websocket_thread = WebSocketWorker(pairs)
         self.websocket_thread.message_received.connect(self.ticker_updater.update_ticker_table)
         self.websocket_thread.start()
+        self.update_pairs_display(pairs)
 
     def closeEvent(self, event):
         """Menangani event penutupan aplikasi, memastikan koneksi dan thread ditutup dengan benar."""

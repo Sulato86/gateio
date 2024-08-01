@@ -69,6 +69,7 @@ class WebSocketWorker(QThread):
             future.add_done_callback(self._handle_subscribe_result)
         else:
             logger.info(f"Pair {pair} already exists.")
+        logger.debug(f"Current pairs: {self.gateio_ws.pairs}")
 
     def _handle_subscribe_result(self, future):
         try:
