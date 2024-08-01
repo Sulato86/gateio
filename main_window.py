@@ -5,7 +5,7 @@ from PyQt5.QtGui import QStandardItemModel, QStandardItem
 from PyQt5.QtCore import Qt
 from control.logging_config import setup_logging
 from ui.ui_main_window import Ui_MainWindow
-from control.data_handler import DataHandler, TickerTableUpdater
+from control.data_handler import DataHandler, TickerTableUpdater, CustomSortFilterProxyModel
 from control.websocket_worker import WebSocketWorker
 from control.http_worker import HTTPWorker
 
@@ -31,8 +31,15 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # Inisialisasi model untuk tableView_marketdata
         self.market_model = QStandardItemModel()
         self.market_model.setHorizontalHeaderLabels(['TIME', 'PAIR', '24%', 'PRICE', 'VOLUME(Base)'])
-        self.tableView_marketdata.setModel(self.market_model)
+
+        # Inisialisasi custom proxy model untuk sorting
+        self.proxy_model = CustomSortFilterProxyModel()
+        self.proxy_model.setSourceModel(self.market_model)
+        self.tableView_marketdata.setModel(self.proxy_model)
         self.tableView_marketdata.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+
+        # Mengaktifkan fitur sorting
+        self.tableView_marketdata.setSortingEnabled(True)
 
         # Inisialisasi model untuk tableView_accountdata
         self.account_model = QStandardItemModel()

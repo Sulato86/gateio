@@ -1,10 +1,32 @@
 import sqlite3
 import logging
-from PyQt5.QtCore import QObject, pyqtSignal
+from PyQt5.QtCore import QObject, pyqtSignal, QSortFilterProxyModel
 from PyQt5.QtGui import QStandardItemModel, QStandardItem
 from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
+
+class CustomSortFilterProxyModel(QSortFilterProxyModel):
+    def lessThan(self, left, right):
+        # Kolom yang memerlukan sorting khusus (misalnya kolom 2 dan 3 untuk persentase perubahan dan harga)
+        columns_to_sort_as_numbers = [2, 3]
+
+        left_data = self.sourceModel().data(left)
+        right_data = self.sourceModel().data(right)
+
+        # Coba mengubah data ke float untuk kolom yang perlu sorting numerik
+        try:
+            left_value = float(left_data)
+            right_value = float(right_data)
+        except ValueError:
+            left_value = left_data
+            right_value = right_data
+
+        if left.column() in columns_to_sort_as_numbers:
+            return left_value < right_value
+
+        # Default sorting menggunakan string comparison
+        return super(CustomSortFilterProxyModel, self).lessThan(left, right)
 
 class DataHandler(QObject):
     data_ready = pyqtSignal(QStandardItemModel)
