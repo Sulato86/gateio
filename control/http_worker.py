@@ -1,4 +1,5 @@
 import logging
+import requests
 from PyQt5.QtCore import QObject, pyqtSignal, QTimer
 from PyQt5.QtGui import QStandardItem, QStandardItemModel
 from decimal import Decimal
@@ -74,3 +75,8 @@ class HTTPWorker(QObject):
         # Emit signal untuk memberitahukan UI bahwa data telah siap
         self.data_ready.emit(self.account_model)
         logger.info("Data ready signal emitted.")
+
+    def validate_pair(self, pair):
+        url = f"https://api.gateio.ws/api/v4/spot/currency_pairs/{pair}"
+        response = requests.get(url)
+        return response.status_code == 200

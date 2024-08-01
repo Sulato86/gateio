@@ -1,7 +1,7 @@
 import sys
 import logging
 import sqlite3
-from PyQt5.QtWidgets import QApplication, QMainWindow, QHeaderView
+from PyQt5.QtWidgets import QApplication, QMainWindow, QHeaderView, QMessageBox
 from PyQt5.QtGui import QStandardItemModel, QStandardItem
 from PyQt5.QtCore import Qt
 from control.websocket_worker import WebSocketWorker, TickerTableUpdater
@@ -53,6 +53,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         # Hubungkan QLineEdit untuk input pasangan baru
         self.lineEdit_addpair.returnPressed.connect(self.add_pair)
+        self.lineEdit_addpair.setPlaceholderText("e.g BTC_USDT")
 
         # Tampilkan pasangan mata uang yang sudah ada saat inisialisasi
         self.update_pairs_display(pairs)
@@ -67,11 +68,16 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         """Menambahkan pasangan mata uang baru ke database dan WebSocket."""
         pair = self.lineEdit_addpair.text().upper()
         if pair and pair not in self.websocket_thread.gateio_ws.pairs:
-            logger.info(f"Adding pair: {pair}")
-            self.save_pair(pair)
-            self.lineEdit_addpair.clear()
-            self.restart_websocket_worker()
+            if self.http_worker.validate_pair(pair):
+                logger.info(f"Adding pair: {pair}")
+                self.save_pair(pair)
+                self.lineEdit_addpair.clear()
+                self.restart_websocket_worker()
+            else:
+                QMessageBox.warning(self, "Invalid Pair", f"The pair {pair} does not exist on Gate.io.")
+                logger.info(f"Pair {pair} does not exist on Gate.io.")
         else:
+            QMessageBox.warning(self, "Invalid Pair", f"The pair {pair} already exists or is invalid.")
             logger.info(f"Pair {pair} already exists or is invalid.")
 
     def save_pair(self, pair):
