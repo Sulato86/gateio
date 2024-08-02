@@ -26,19 +26,31 @@ logger.addHandler(file_handler)
 logger.addHandler(console_handler)
 
 class CustomSortFilterProxyModel(QSortFilterProxyModel):
+    """
+    Model kustom untuk mengurutkan data dalam QStandardItemModel.
+    """
+
     def lessThan(self, left, right):
+        """
+        Mengurutkan data pada kolom tertentu sebagai angka.
+
+        Args:
+            left (QModelIndex): Indeks data sebelah kiri.
+            right (QModelIndex): Indeks data sebelah kanan.
+
+        Returns:
+            bool: True jika data sebelah kiri kurang dari data sebelah kanan.
+        """
         columns_to_sort_as_numbers = [2, 3]  # Kolom yang perlu sorting sebagai angka
 
         left_data = self.sourceModel().data(left)
         right_data = self.sourceModel().data(right)
 
-        # Jika data adalah None, anggap sebagai nilai yang lebih kecil dari angka lainnya
         if left_data is None:
             return True
         if right_data is None:
             return False
 
-        # Coba mengubah data ke float untuk kolom yang perlu sorting numerik
         try:
             left_value = float(left_data)
             right_value = float(right_data)
@@ -49,16 +61,21 @@ class CustomSortFilterProxyModel(QSortFilterProxyModel):
         if left.column() in columns_to_sort_as_numbers:
             return left_value < right_value
 
-        # Default sorting menggunakan string comparison
         return super(CustomSortFilterProxyModel, self).lessThan(left, right)
 
 class DataHandler(QObject):
+    """
+    Kelas untuk menangani data, termasuk koneksi ke database dan pemrosesan data.
+    """
     data_ready = pyqtSignal(QStandardItemModel)
     message_received = pyqtSignal(dict)
     pair_added = pyqtSignal(str)
     pair_deleted = pyqtSignal(str)
 
     def __init__(self):
+        """
+        Inisialisasi DataHandler dan konfigurasikan koneksi ke database.
+        """
         super().__init__()
         self.conn = self.create_connection('pairs.db')
         self.create_table(self.conn)
@@ -66,7 +83,15 @@ class DataHandler(QObject):
         logger.info("DataHandler initialized")
 
     def create_connection(self, db_file):
-        """Membuat koneksi ke database SQLite."""
+        """
+        Membuat koneksi ke database SQLite.
+
+        Args:
+            db_file (str): Nama file database.
+
+        Returns:
+            sqlite3.Connection: Koneksi ke database.
+        """
         logger.debug(f"Creating connection to database: {db_file}")
         try:
             conn = sqlite3.connect(db_file)
@@ -77,7 +102,12 @@ class DataHandler(QObject):
             return None
 
     def create_table(self, conn):
-        """Membuat tabel 'pairs' dalam database jika belum ada."""
+        """
+        Membuat tabel 'pairs' dalam database jika belum ada.
+
+        Args:
+            conn (sqlite3.Connection): Koneksi ke database.
+        """
         logger.debug("Creating table 'pairs' if it doesn't exist")
         try:
             cursor = conn.cursor()
@@ -88,19 +118,29 @@ class DataHandler(QObject):
             logger.error(f"Failed to create table: {e}")
 
     def add_pair_to_db(self, pair):
-        """Menyimpan pasangan mata uang ke database."""
+        """
+        Menyimpan pasangan mata uang ke database.
+
+        Args:
+            pair (str): Pasangan mata uang yang akan disimpan.
+        """
         logger.debug(f"Adding pair to database: {pair}")
         try:
             cursor = self.conn.cursor()
             cursor.execute('INSERT OR IGNORE INTO pairs (name) VALUES (?)', (pair,))
             self.conn.commit()
             logger.info(f"Pair {pair} saved to database")
-            self.pair_added.emit(pair)  # Emit signal when a pair is added
+            self.pair_added.emit(pair)
         except sqlite3.Error as e:
             logger.error(f"Failed to add pair to database: {e}")
 
     def load_pairs(self):
-        """Memuat semua pasangan mata uang dari database."""
+        """
+        Memuat semua pasangan mata uang dari database.
+
+        Returns:
+            list: Daftar pasangan mata uang.
+        """
         logger.debug("Loading pairs from database")
         try:
             cursor = self.conn.cursor()
@@ -113,28 +153,62 @@ class DataHandler(QObject):
             return []
 
     def fetch_balances(self, http_worker):
-        """Meminta saldo dari HTTPWorker."""
+        """
+        Meminta saldo dari HTTPWorker.
+
+        Args:
+            http_worker (HTTPWorker): Instans dari HTTPWorker.
+        """
         logger.debug("Fetching balances using HTTPWorker")
         http_worker.fetch_balances()
 
     def validate_pair(self, http_worker, pair):
-        """Memvalidasi pasangan mata uang dengan HTTPWorker."""
+        """
+        Memvalidasi pasangan mata uang dengan HTTPWorker.
+
+        Args:
+            http_worker (HTTPWorker): Instans dari HTTPWorker.
+            pair (str): Pasangan mata uang yang akan divalidasi.
+
+        Returns:
+            bool: True jika pasangan mata uang valid, False jika tidak.
+        """
         logger.debug(f"Validating pair: {pair}")
         return http_worker.validate_pair(pair)
 
     def delete_pair_from_db(self, pair):
-        """Menghapus pasangan mata uang dari database."""
+        """
+        Menghapus pasangan mata uang dari database.
+
+        Args:
+            pair (str): Pasangan mata uang yang akan dihapus.
+        """
         logger.debug(f"Deleting pair from database: {pair}")
         try:
             cursor = self.conn.cursor()
             cursor.execute('DELETE FROM pairs WHERE name = ?', (pair,))
             self.conn.commit()
             logger.info(f"Pair {pair} deleted from database")
-            self.pair_deleted.emit(pair)  # Emit signal when a pair is deleted
+            self.pair_deleted.emit(pair)
+
+            cursor.execute('SELECT name FROM pairs WHERE name = ?', (pair,))
+            result = cursor.fetchone()
+            if result is None:
+                logger.debug(f"Pair {pair} successfully removed from database.")
+            else:
+                logger.error(f"Pair {pair} still exists in database.")
         except sqlite3.Error as e:
             logger.error(f"Failed to delete pair from database: {e}")
 
     def delete_rows_by_column_value(self, model, column_index, value):
+        """
+        Menghapus baris pada model berdasarkan nilai kolom.
+
+        Args:
+            model (QStandardItemModel): Model data.
+            column_index (int): Indeks kolom.
+            value (str): Nilai yang akan dicocokkan untuk penghapusan baris.
+        """
         logger.debug(f"Deleting rows with value {value} in column {column_index}")
         rows_to_remove = []
         for row in range(model.rowCount()):
@@ -147,12 +221,29 @@ class DataHandler(QObject):
             logger.info(f"Row {row} with value {value} in column {column_index} removed")
 
 class TickerTableUpdater:
+    """
+    Kelas untuk memperbarui tabel ticker dengan data yang diterima.
+    """
+
     def __init__(self, model, row_mapping):
+        """
+        Inisialisasi TickerTableUpdater.
+
+        Args:
+            model (QStandardItemModel): Model data untuk tabel ticker.
+            row_mapping (dict): Pemetaan baris untuk pasangan mata uang.
+        """
         self.model = model
         self.row_mapping = row_mapping
         logger.debug("TickerTableUpdater initialized")
 
     def update_ticker_table(self, message):
+        """
+        Memperbarui tabel ticker dengan pesan data yang diterima.
+
+        Args:
+            message (dict): Pesan data yang diterima.
+        """
         logger.debug(f"Received message for ticker update: {message}")
         ticker_data = message.get('result', {})
         required_keys = ['currency_pair', 'change_percentage', 'last', 'base_volume']

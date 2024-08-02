@@ -12,10 +12,19 @@ handler.setFormatter(formatter)
 logger.addHandler(handler)
 
 class WebSocketWorker(QThread):
+    """
+    Kelas untuk menjalankan koneksi WebSocket di dalam thread terpisah.
+    """
     message_received = pyqtSignal(dict)
     balance_received = pyqtSignal(list)
 
     def __init__(self, pairs=None):
+        """
+        Inisialisasi WebSocketWorker dengan pasangan mata uang yang diberikan.
+
+        Args:
+            pairs (list): Daftar pasangan mata uang untuk disubscribe.
+        """
         super().__init__()
         self.gateio_ws = GateIOWebSocket(self.send_message_to_ui, pairs)
         self.loop = None
@@ -23,6 +32,9 @@ class WebSocketWorker(QThread):
         logger.debug("WebSocketWorker initialized with pairs: %s", pairs)
 
     def run(self):
+        """
+        Memulai thread dan event loop untuk koneksi WebSocket.
+        """
         logger.debug("WebSocketWorker thread started")
         self.loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self.loop)
@@ -36,6 +48,9 @@ class WebSocketWorker(QThread):
             self.loop.close()
 
     async def connect(self):
+        """
+        Menghubungkan ke WebSocket dan mencoba kembali jika terputus.
+        """
         while not self.stop_event.is_set():
             try:
                 logger.info("Starting WebSocket connection")
@@ -46,10 +61,19 @@ class WebSocketWorker(QThread):
                 logger.info("Retrying WebSocket connection in 5 seconds")
 
     def send_message_to_ui(self, message):
+        """
+        Mengirim pesan yang diterima dari WebSocket ke UI.
+
+        Args:
+            message (dict): Pesan yang diterima dari WebSocket.
+        """
         logger.debug(f"Emitting message to UI: {message}")
         self.message_received.emit(message)
 
     def stop(self):
+        """
+        Menghentikan thread dan menutup koneksi WebSocket.
+        """
         logger.debug("Stopping WebSocketWorker")
         if self.loop:
             self.stop_event.set()
@@ -58,6 +82,12 @@ class WebSocketWorker(QThread):
 
     @pyqtSlot(str)
     def add_pair(self, pair):
+        """
+        Menambahkan pasangan mata uang baru untuk disubscribe.
+
+        Args:
+            pair (str): Pasangan mata uang yang akan ditambahkan.
+        """
         logger.info(f"Adding new pair: {pair}")
         if pair not in self.gateio_ws.pairs:
             self.gateio_ws.pairs.append(pair)
@@ -70,17 +100,34 @@ class WebSocketWorker(QThread):
 
     @pyqtSlot(str)
     def remove_pair(self, pair):
+        """
+        Menghapus pasangan mata uang dari subscription.
+
+        Args:
+            pair (str): Pasangan mata uang yang akan dihapus.
+        """
         logger.info(f"Removing pair: {pair}")
         if pair in self.gateio_ws.pairs:
             self.gateio_ws.pairs.remove(pair)
             logger.debug(f"Pair {pair} removed from the list, attempting to unsubscribe.")
             future = asyncio.run_coroutine_threadsafe(self.gateio_ws.unsubscribe_from_pair(pair), self.loop)
             future.add_done_callback(self._handle_unsubscribe_result)
+
+            if pair not in self.gateio_ws.pairs:
+                logger.debug(f"Pair {pair} successfully removed from WebSocket tracking.")
+            else:
+                logger.error(f"Pair {pair} still exists in WebSocket tracking.")
         else:
             logger.info(f"Pair {pair} does not exist.")
         logger.debug(f"Current pairs: {self.gateio_ws.pairs}")
 
     def _handle_subscribe_result(self, future):
+        """
+        Menghandle hasil dari operasi subscribe.
+
+        Args:
+            future (concurrent.futures.Future): Objek future dari operasi subscribe.
+        """
         try:
             result = future.result()
             logger.info(f"Subscription result: {result}")
@@ -88,6 +135,12 @@ class WebSocketWorker(QThread):
             logger.error(f"Subscription error: {e}")
 
     def _handle_unsubscribe_result(self, future):
+        """
+        Menghandle hasil dari operasi unsubscribe.
+
+        Args:
+            future (concurrent.futures.Future): Objek future dari operasi unsubscribe.
+        """
         try:
             result = future.result()
             logger.info(f"Unsubscription result: {result}")

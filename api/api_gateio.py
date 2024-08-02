@@ -5,28 +5,22 @@ from gate_api import Configuration, ApiClient, SpotApi, MarginApi
 from tenacity import retry, stop_after_attempt, wait_fixed
 from cachetools import cached, TTLCache
 
-# Load environment variables from .env file
 load_dotenv()
 
-# Inisialisasi logger
 logger = logging.getLogger('api_gateio')
 logger.setLevel(logging.DEBUG)
 
-# Handler untuk file logging
 file_handler = logging.FileHandler('api_gateio.log')
 file_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 file_handler.setFormatter(file_formatter)
 
-# Handler untuk console logging
 console_handler = logging.StreamHandler()
 console_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
 console_handler.setFormatter(console_formatter)
 
-# Menambahkan handler ke logger
 logger.addHandler(file_handler)
 logger.addHandler(console_handler)
 
-# Mendapatkan API key dan API secret dari environment variables
 api_key = os.getenv('API_KEY')
 api_secret = os.getenv('API_SECRET')
 
@@ -34,14 +28,23 @@ if not api_key or not api_secret:
     logger.critical("API_KEY dan API_SECRET harus disetel dalam environment variables")
     raise ValueError("API_KEY dan API_SECRET harus disetel dalam environment variables")
 
-# Konfigurasi API
 configuration = Configuration(key=api_key, secret=api_secret)
 api_client = ApiClient(configuration=configuration)
 
-# Caching
 cache = TTLCache(maxsize=10, ttl=5)
+
 class GateIOAPI:
+    """
+    Kelas untuk berinteraksi dengan API Gate.io.
+    """
+
     def __init__(self, api_client):
+        """
+        Inisialisasi kelas GateIOAPI.
+        
+        Args:
+            api_client (ApiClient): Klien API yang sudah dikonfigurasi.
+        """
         logger.debug("Inisialisasi GateIOAPI")
         self.api_client = api_client
         self.spot_api = SpotApi(api_client)
@@ -50,17 +53,18 @@ class GateIOAPI:
     @cached(cache)
     @retry(stop=stop_after_attempt(3), wait=wait_fixed(2))
     def get_balances(self):
+        """
+        Mendapatkan saldo akun spot dari API Gate.io.
+        
+        Returns:
+            dict: Saldo akun spot.
+        """
         logger.debug("Memanggil get_balances")
         try:
             spot_balances = self.spot_api.list_spot_accounts()
-            # Tambahkan pemanggilan endpoint lain untuk jenis akun lainnya jika perlu
-            # Misalnya, margin_balances = self.margin_api.list_margin_accounts()
-            
             logger.info("Balances retrieved successfully")
             return {
                 'spot': spot_balances,
-                # 'margin': margin_balances,
-                # Tambahkan data lainnya sesuai kebutuhan
             }
         except Exception as e:
             logger.error(f"Error getting balances: {e}")
@@ -68,6 +72,15 @@ class GateIOAPI:
 
     @retry(stop=stop_after_attempt(3), wait=wait_fixed(2))
     def get_order_history(self, currency_pair):
+        """
+        Mendapatkan riwayat order untuk pasangan mata uang tertentu.
+        
+        Args:
+            currency_pair (str): Pasangan mata uang.
+        
+        Returns:
+            list: Riwayat order.
+        """
         logger.debug(f"Memanggil get_order_history untuk pasangan mata uang {currency_pair}")
         try:
             orders = self.spot_api.list_orders(currency_pair=currency_pair, status='finished')
@@ -79,6 +92,16 @@ class GateIOAPI:
 
     @retry(stop=stop_after_attempt(3), wait=wait_fixed(2))
     def cancel_order(self, currency_pair, order_id):
+        """
+        Membatalkan order tertentu berdasarkan pasangan mata uang dan ID order.
+        
+        Args:
+            currency_pair (str): Pasangan mata uang.
+            order_id (str): ID order.
+        
+        Returns:
+            dict: Respons pembatalan order.
+        """
         logger.debug(f"Membatalkan order dengan currency_pair: {currency_pair}, order_id: {order_id}")
         try:
             response = self.spot_api.cancel_order(currency_pair, order_id)
@@ -93,7 +116,6 @@ if __name__ == "__main__":
 
     api = GateIOAPI(api_client)
     
-    # Contoh menjalankan fungsi get_balances
     try:
         balances = api.get_balances()
         if balances:

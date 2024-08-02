@@ -115,3 +115,5 @@ pyuic5 -o ui/ui_main_window.py ui/main_window.ui
 =================INSTALL=======================
 pyinstaller --onedir --windowed --clean main_window.py
 ===============================================
+==================FLOWCHART====================
+doxygen Doxyfile

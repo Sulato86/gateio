@@ -13,7 +13,17 @@ from control.http_worker import HTTPWorker
 logger = setup_logging('main_window.log')
 
 class MainWindow(QMainWindow, Ui_MainWindow):
+    """
+    Kelas untuk mengelola jendela utama aplikasi.
+    """
+
     def __init__(self, pairs=None):
+        """
+        Inisialisasi MainWindow dengan pasangan mata uang yang diberikan.
+
+        Args:
+            pairs (list): Daftar pasangan mata uang untuk disubscribe.
+        """
         super().__init__()
         self.setupUi(self)
 
@@ -77,10 +87,22 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.tableView_marketdata.customContextMenuRequested.connect(self.show_context_menu)
 
     def handle_click(self, index):
+        """
+        Menghandle klik pada tableView_marketdata.
+
+        Args:
+            index (QModelIndex): Indeks yang diklik.
+        """
         self.clear_highlights()
         self.highlight_rows(index)
 
     def highlight_rows(self, index):
+        """
+        Menyorot baris dengan nilai yang sama pada kolom yang diklik.
+
+        Args:
+            index (QModelIndex): Indeks yang diklik.
+        """
         value = self.proxy_model.data(index)
         column = index.column()
         for row in range(self.proxy_model.rowCount()):
@@ -90,11 +112,20 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                     self.proxy_model.item(row, col).setBackground(QBrush(QColor("yellow")))
 
     def clear_highlights(self):
+        """
+        Menghapus sorotan dari semua baris.
+        """
         for row in range(self.proxy_model.rowCount()):
             for col in range(self.proxy_model.columnCount()):
                 self.proxy_model.item(row, col).setBackground(QBrush(QColor("white")))
 
     def show_context_menu(self, position: QPoint):
+        """
+        Menampilkan menu konteks pada klik kanan di tableView_marketdata.
+
+        Args:
+            position (QPoint): Posisi klik kanan.
+        """
         index = self.tableView_marketdata.indexAt(position)
         if not index.isValid():
             logger.debug(f"Invalid index at position: {position}")
@@ -118,14 +149,20 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.delete_row_by_value(source_index, pair)
 
     def delete_row_by_value(self, index, pair):
-        # Konfirmasi penghapusan
+        """
+        Menghapus baris berdasarkan nilai pasangan mata uang.
+
+        Args:
+            index (QModelIndex): Indeks baris yang akan dihapus.
+            pair (str): Pasangan mata uang yang akan dihapus.
+        """
         confirmation = QMessageBox.question(self, "Delete Pair", f"Are you sure you want to delete the pair {pair}?", QMessageBox.Yes | QMessageBox.No)
         if confirmation == QMessageBox.Yes:
             try:
                 logger.debug(f"Deleting row at index: {index.row()} with pair: {pair}")
                 self.data_handler.delete_rows_by_column_value(self.market_model, index.column(), pair)
                 self.data_handler.delete_pair_from_db(pair)
-                self.remove_pair_from_websocket(pair)  # Panggil fungsi untuk unsubscribe
+                self.remove_pair_from_websocket(pair)
                 self.proxy_model.invalidate()
                 self.update_pairs_display()
             except Exception as e:
@@ -133,6 +170,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 QMessageBox.critical(self, "Error", f"Failed to delete pair {pair}. Please try again.")
 
     def add_pair(self):
+        """
+        Menambahkan pasangan mata uang baru ke database dan websocket.
+        """
         pair = self.lineEdit_addpair.text().upper()
         if pair and pair not in self.websocket_thread.gateio_ws.pairs:
             if self.data_handler.validate_pair(self.http_worker, pair):
@@ -152,6 +192,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             logger.info(f"Pair {pair} already exists or is invalid.")
 
     def update_pairs_display(self, pairs=None):
+        """
+        Memperbarui tampilan pasangan mata uang di UI.
+
+        Args:
+            pairs (list, optional): Daftar pasangan mata uang. Defaultnya adalah None.
+        """
         if pairs is None:
             pairs = self.data_handler.load_pairs()
 
@@ -170,21 +216,54 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                     QStandardItem("")
                 ])
                 logger.info(f"Added pair {pair} to tableView_marketdata at row {row_index}")
+    
+        current_pairs = [self.market_model.item(row, 1).text() for row in range(self.market_model.rowCount())]
+        logger.debug(f"Current pairs displayed in UI: {current_pairs}")
 
     def add_pair_to_websocket(self, pair):
+        """
+        Menambahkan pasangan mata uang baru ke WebSocket.
+
+        Args:
+            pair (str): Pasangan mata uang yang akan ditambahkan.
+        """
         self.websocket_thread.add_pair(pair)
 
     def remove_pair_from_websocket(self, pair):
+        """
+        Menghapus pasangan mata uang dari WebSocket.
+
+        Args:
+            pair (str): Pasangan mata uang yang akan dihapus.
+        """
         self.websocket_thread.remove_pair(pair)
 
     def update_market_data(self, data):
+        """
+        Memperbarui data pasar di UI.
+
+        Args:
+            data (dict): Data pasar yang akan diperbarui.
+        """
         logger.debug(f"Market data updated: {data}")
 
     def update_account_view(self, account_model):
+        """
+        Memperbarui tampilan akun di UI.
+
+        Args:
+            account_model (QStandardItemModel): Model data akun yang akan diperbarui.
+        """
         logger.info("Updating account view with new data.")
         self.tableView_accountdata.setModel(account_model)
 
     def closeEvent(self, event):
+        """
+        Menangani event saat jendela ditutup.
+
+        Args:
+            event (QCloseEvent): Event yang terjadi saat jendela ditutup.
+        """
         self.data_handler.conn.close()
         self.websocket_thread.stop()
         self.websocket_thread.wait()
