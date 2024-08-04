@@ -5,7 +5,7 @@ import time
 from logging_config import configure_logging
 
 # Konfigurasi logging untuk balances_loader
-logger = configure_logging('balances_loader', 'logs/websocket_gateio.log')
+logger = configure_logging('websocket_gateio', 'logs/websocket_gateio.log')
 
 class GateIOWebSocket:
     """

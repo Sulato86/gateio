@@ -11,7 +11,7 @@ from cachetools import cached, TTLCache
 load_dotenv()
 
 # Configure logging
-logger = configure_logging('balances_loader', 'logs/api_gateio.log')
+logger = configure_logging('api_gateio', 'logs/api_gateio.log')
 
 # Get API key and secret from environment variables
 api_key = os.getenv('API_KEY')
