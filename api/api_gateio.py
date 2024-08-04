@@ -7,13 +7,10 @@ from gate_api import Configuration, ApiClient, SpotApi, ApiException
 from tenacity import retry, stop_after_attempt, wait_fixed
 from cachetools import cached, TTLCache
 
-# Load environment variables from .env file
 load_dotenv()
 
-# Configure logging
 logger = configure_logging('api_gateio', 'logs/api_gateio.log')
 
-# Get API key and secret from environment variables
 api_key = os.getenv('API_KEY')
 api_secret = os.getenv('API_SECRET')
 
@@ -21,11 +18,9 @@ if not api_key or not api_secret:
     logger.critical("API_KEY dan API_SECRET harus disetel dalam environment variables")
     raise ValueError("API_KEY dan API_SECRET harus disetel dalam environment variables")
 
-# Configure API client
 configuration = Configuration(key=api_key, secret=api_secret)
 api_client = ApiClient(configuration=configuration)
 
-# Configure cache with TTL of 5 seconds
 cache = TTLCache(maxsize=10, ttl=5)
 
 class GateIOAPI:

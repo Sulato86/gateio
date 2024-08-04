@@ -159,9 +159,9 @@ class GateIOWebSocket:
             except websockets.ConnectionClosed as e:
                 logger.error(f"WebSocket connection closed: {e}")
                 retry_count += 1
-                await asyncio.sleep(5 * retry_count)  # Exponential backoff
+                await asyncio.sleep(5 * retry_count)
             except Exception as e:
                 logger.error(f"Unexpected error: {e}")
                 retry_count += 1
-                await asyncio.sleep(5 * retry_count)  # Exponential backoff
+                await asyncio.sleep(5 * retry_count)
         logger.error("Max retries reached, exiting run loop")

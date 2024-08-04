@@ -1,7 +1,6 @@
 from api.api_gateio import GateIOAPI, api_client
 from utils.logging_config import configure_logging
 
-# Konfigurasi logging untuk balances_loader
 logger = configure_logging('balances_loader', 'logs/balances_loader.log')
 
 # Inisialisasi objek API
@@ -37,10 +36,10 @@ def load_balances():
 
         if not table_data:
             logger.warning("Tidak ada saldo yang memenuhi kriteria untuk ditampilkan.")
-            table_data = [["-", 0, 0]]  # Data default jika tidak ada saldo yang memenuhi kriteria
+            table_data = [["-", 0, 0]]
 
         logger.info("Saldo akun berhasil dimuat")
         return table_data
     except Exception as e:
         logger.error(f"Error saat memuat saldo akun: {e}")
-        return [["-", 0, 0]]  # Data default jika terjadi error
+        return [["-", 0, 0]]

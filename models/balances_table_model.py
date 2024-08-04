@@ -1,7 +1,7 @@
 from PyQt5.QtCore import QAbstractTableModel, Qt
 from utils.logging_config import configure_logging
 
-# Konfigurasi logging untuk balances_table_model
+
 logger = configure_logging('balances_table_model', 'logs/balances_table_model.log')
 
 class BalancesTableModel(QAbstractTableModel):
@@ -14,7 +14,7 @@ class BalancesTableModel(QAbstractTableModel):
     def __init__(self, data):
         logger.debug("Inisialisasi BalancesTableModel")
         super(BalancesTableModel, self).__init__()
-        self._data = data if data else [[]]  # Inisialisasi dengan data atau list kosong jika tidak ada data
+        self._data = data if data else [[]]
         logger.debug(f"Data model inisialisasi dengan {len(self._data)} baris.")
 
     def data(self, index, role):
@@ -59,7 +59,7 @@ class BalancesTableModel(QAbstractTableModel):
         Returns:
             int: Jumlah kolom dalam tabel.
         """
-        count = len(self._data[0]) if self._data else 0  # Pastikan tidak terjadi IndexError
+        count = len(self._data[0]) if self._data else 0
         logger.debug(f"Jumlah kolom dalam model: {count}")
         return count
 

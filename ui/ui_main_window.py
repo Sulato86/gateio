@@ -65,7 +65,7 @@ class Ui_MainWindow(object):
         self.tableView_marketdata.setObjectName("tableView_marketdata")
         self.verticalLayout.addWidget(self.tableView_marketdata)
         self.verticalLayoutWidget_2 = QtWidgets.QWidget(self.centralwidget)
-        self.verticalLayoutWidget_2.setGeometry(QtCore.QRect(10, 480, 211, 211))
+        self.verticalLayoutWidget_2.setGeometry(QtCore.QRect(10, 480, 251, 211))
         self.verticalLayoutWidget_2.setObjectName("verticalLayoutWidget_2")
         self.verticalLayout_2 = QtWidgets.QVBoxLayout(self.verticalLayoutWidget_2)
         self.verticalLayout_2.setSizeConstraint(QtWidgets.QLayout.SetMinimumSize)

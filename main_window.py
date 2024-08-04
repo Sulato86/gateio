@@ -38,7 +38,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.timer.timeout.connect(self.ws_handler.run_asyncio_loop)
         self.timer.start(100)
 
-        # Connect returnPressed signal to add_pair method
         self.lineEdit_addpair.returnPressed.connect(self.add_pair)
 
     def run_asyncio_loop(self):
@@ -56,8 +55,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             table_data = load_balances()
             self.model = BalancesTableModel(table_data)
             self.tableView_accountdata.setModel(self.model)
-            self.tableView_accountdata.resizeColumnsToContents()
-            self.tableView_accountdata.resizeRowsToContents()
+            self.tableView_accountdata.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
             logger.info("Saldo akun berhasil dimuat dan ditampilkan di tabel")
         except Exception as e:
             logger.error(f"Error saat memuat saldo akun: {e}")

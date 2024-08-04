@@ -10,7 +10,7 @@ class WebSocketHandler:
         logger.debug("Inisialisasi WebSocketHandler")
         self.on_data_received = on_data_received
         self.market_data = []
-        self.pairs = ["BTC_USDT", "ETH_USDT"]
+        self.pairs = []
         self.gateio_ws = GateIOWebSocket(self.on_message, pairs=self.pairs)
         self.loop = asyncio.get_event_loop()
         asyncio.ensure_future(self.gateio_ws.run())
