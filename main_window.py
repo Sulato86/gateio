@@ -2,8 +2,8 @@ import sys
 import asyncio
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-from PyQt5.QtWidgets import QApplication, QMainWindow, QHeaderView, QMessageBox
-from PyQt5.QtCore import QTimer
+from PyQt5.QtWidgets import QApplication, QMainWindow, QHeaderView, QMessageBox, QMenu
+from PyQt5.QtCore import QTimer, Qt
 from ui.ui_main_window import Ui_MainWindow
 from utils.logging_config import configure_logging
 from loaders.balances_loader import load_balances
@@ -31,6 +31,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.market_data_model = MarketDataTableModel(self.market_data)
         self.tableView_marketdata.setModel(self.market_data_model)
         self.tableView_marketdata.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.tableView_marketdata.setSelectionBehavior(self.tableView_marketdata.SelectRows)
+        self.tableView_marketdata.setSelectionMode(self.tableView_marketdata.ExtendedSelection)
 
         self.ws_handler = WebSocketHandler(self.update_market_data)
 
@@ -68,8 +70,16 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             market_data (list): Data market terbaru.
         """
         logger.debug("Memperbarui data market di tabel dengan data: %s", market_data)
+
+        # Simpan indeks yang dipilih
+        selected_indexes = self.tableView_marketdata.selectionModel().selectedIndexes()
+
         self.market_data_model.update_data(market_data)
         logger.info("Data market di tabel berhasil diperbarui")
+
+        # Kembalikan sorotan
+        for index in selected_indexes:
+            self.tableView_marketdata.selectionModel().select(index, self.tableView_marketdata.selectionModel().Select)
 
     def add_pair(self):
         """
@@ -89,6 +99,29 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         else:
             QMessageBox.warning(self, 'Input Error', 'Masukkan pasangan mata uang yang valid.')
             logger.warning("Input pasangan mata uang tidak valid")
+
+    def contextMenuEvent(self, event):
+        """
+        Menangani event klik kanan untuk menampilkan menu konteks.
+        """
+        context_menu = QMenu(self)
+        delete_action = context_menu.addAction("Hapus Baris")
+        action = context_menu.exec_(self.mapToGlobal(event.pos()))
+        if action == delete_action:
+            self.delete_selected_rows()
+
+    def delete_selected_rows(self):
+        """
+        Menghapus baris yang dipilih dari tabel market data.
+        """
+        selected_indexes = self.tableView_marketdata.selectionModel().selectedRows()
+        if selected_indexes:
+            rows = sorted(index.row() for index in selected_indexes)
+            pairs = [self.market_data_model._data[row][1] for row in rows]
+            self.ws_handler.delete_selected_rows(pairs)
+            QMessageBox.information(self, 'Baris Dihapus', 'Baris yang dipilih berhasil dihapus.')
+        else:
+            QMessageBox.warning(self, 'Tidak Ada Baris Terpilih', 'Pilih baris yang akan dihapus.')
 
 if __name__ == "__main__":
     logger.debug("Menjalankan aplikasi main_window.py")
