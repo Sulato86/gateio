@@ -116,4 +116,4 @@ pyuic5 -o ui/ui_main_window.py ui/main_window.ui
 pyinstaller --onedir --windowed --clean main_window.py
 ===============================================
 ==================FLOWCHART====================
-doxygen Doxyfile
+pyreverse -o plantuml -p full -A .

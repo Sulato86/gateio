@@ -1,26 +1,19 @@
 import os
-import logging
+import sys
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+from logging_config import configure_logging
 from dotenv import load_dotenv
-from gate_api import Configuration, ApiClient, SpotApi, MarginApi
+from gate_api import Configuration, ApiClient, SpotApi, ApiException
 from tenacity import retry, stop_after_attempt, wait_fixed
 from cachetools import cached, TTLCache
 
+# Load environment variables from .env file
 load_dotenv()
 
-logger = logging.getLogger('api_gateio')
-logger.setLevel(logging.DEBUG)
+# Configure logging
+logger = configure_logging('balances_loader', 'logs/api_gateio.log')
 
-file_handler = logging.FileHandler('api_gateio.log')
-file_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-file_handler.setFormatter(file_formatter)
-
-console_handler = logging.StreamHandler()
-console_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-console_handler.setFormatter(console_formatter)
-
-logger.addHandler(file_handler)
-logger.addHandler(console_handler)
-
+# Get API key and secret from environment variables
 api_key = os.getenv('API_KEY')
 api_secret = os.getenv('API_SECRET')
 
@@ -28,9 +21,11 @@ if not api_key or not api_secret:
     logger.critical("API_KEY dan API_SECRET harus disetel dalam environment variables")
     raise ValueError("API_KEY dan API_SECRET harus disetel dalam environment variables")
 
+# Configure API client
 configuration = Configuration(key=api_key, secret=api_secret)
 api_client = ApiClient(configuration=configuration)
 
+# Configure cache with TTL of 5 seconds
 cache = TTLCache(maxsize=10, ttl=5)
 
 class GateIOAPI:
@@ -48,7 +43,6 @@ class GateIOAPI:
         logger.debug("Inisialisasi GateIOAPI")
         self.api_client = api_client
         self.spot_api = SpotApi(api_client)
-        self.margin_api = MarginApi(api_client)
 
     @cached(cache)
     @retry(stop=stop_after_attempt(3), wait=wait_fixed(2))
@@ -66,6 +60,9 @@ class GateIOAPI:
             return {
                 'spot': spot_balances,
             }
+        except ApiException as e:
+            logger.error(f"API exception ketika mendapatkan balances: {e}")
+            raise
         except Exception as e:
             logger.error(f"Error getting balances: {e}")
             raise
@@ -86,6 +83,9 @@ class GateIOAPI:
             orders = self.spot_api.list_orders(currency_pair=currency_pair, status='finished')
             logger.info(f"Order history retrieved: {orders}")
             return orders
+        except ApiException as e:
+            logger.error(f"API exception ketika mendapatkan riwayat order: {e}")
+            raise
         except Exception as e:
             logger.error(f"Error getting order history: {e}")
             raise
@@ -107,6 +107,9 @@ class GateIOAPI:
             response = self.spot_api.cancel_order(currency_pair, order_id)
             logger.info(f"Order canceled: {response}")
             return response
+        except ApiException as e:
+            logger.error(f"API exception ketika membatalkan order: {e}")
+            raise
         except Exception as e:
             logger.error(f"Error canceling order: {e}")
             raise

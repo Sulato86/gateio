@@ -1,23 +1,11 @@
 import json
 import asyncio
 import websockets
-import logging
 import time
+from logging_config import configure_logging
 
-# Inisialisasi logger
-logger = logging.getLogger('websocket_gateio')
-logger.setLevel(logging.DEBUG)
-
-file_handler = logging.FileHandler('websocket_gateio.log')
-file_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-file_handler.setFormatter(file_formatter)
-
-console_handler = logging.StreamHandler()
-console_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-console_handler.setFormatter(console_formatter)
-
-logger.addHandler(file_handler)
-logger.addHandler(console_handler)
+# Konfigurasi logging untuk balances_loader
+logger = configure_logging('balances_loader', 'logs/websocket_gateio.log')
 
 class GateIOWebSocket:
     """
