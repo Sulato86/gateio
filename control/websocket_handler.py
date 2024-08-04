@@ -21,9 +21,12 @@ class WebSocketHandler:
         Menjalankan loop asyncio.
         """
         logger.debug("Menjalankan run_asyncio_loop")
-        self.loop.call_soon_threadsafe(self.loop.stop)
-        self.loop.run_forever()
-        logger.debug("Asyncio loop berjalan")
+        try:
+            self.loop.call_soon_threadsafe(self.loop.stop)
+            self.loop.run_forever()
+            logger.debug("Asyncio loop berjalan")
+        except Exception as e:
+            logger.error(f"Error saat menjalankan asyncio loop: {e}")
 
     def on_message(self, data):
         """
@@ -37,7 +40,7 @@ class WebSocketHandler:
         try:
             result = data['result']
             market_entry = [
-                time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(data['time'])),
+                time.strftime('%d-%m-%Y %H:%M:%S', time.localtime(data['time'])),
                 result['currency_pair'],
                 result['change_percentage'],
                 result['last'],
