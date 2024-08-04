@@ -45,7 +45,7 @@ class GateIOWebSocket:
             else:
                 self.message_callback(data)
         except json.JSONDecodeError as e:
-            logger.error(f"JSON decode error: {e}")
+            logger.error(f"JSON decode error: {e} - message: {message}")
 
     async def on_error(self, error):
         """
@@ -97,6 +97,7 @@ class GateIOWebSocket:
         }
         logger.debug(f"Subscribing with message: {message}")
         await self.websocket.send(json.dumps(message))
+        logger.debug(f"Current pairs: {self.pairs}")
 
     async def subscribe_to_pair(self, pair):
         """
@@ -124,7 +125,7 @@ class GateIOWebSocket:
         """
         if pair in self.pairs:
             self.pairs.remove(pair)
-            if self.websocket:
+            if self.websocket and self.websocket.open:
                 message = {
                     "time": int(time.time()),
                     "channel": "spot.tickers",
@@ -156,9 +157,9 @@ class GateIOWebSocket:
             except websockets.ConnectionClosed as e:
                 logger.error(f"WebSocket connection closed: {e}")
                 retry_count += 1
-                await asyncio.sleep(5)
+                await asyncio.sleep(5 * retry_count)  # Exponential backoff
             except Exception as e:
                 logger.error(f"Unexpected error: {e}")
                 retry_count += 1
-                await asyncio.sleep(5)
+                await asyncio.sleep(5 * retry_count)  # Exponential backoff
         logger.error("Max retries reached, exiting run loop")
