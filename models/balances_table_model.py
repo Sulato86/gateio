@@ -1,5 +1,5 @@
 from PyQt5.QtCore import QAbstractTableModel, Qt
-from logging_config import configure_logging
+from utils.logging_config import configure_logging
 
 # Konfigurasi logging untuk balances_table_model
 logger = configure_logging('balances_table_model', 'logs/balances_table_model.log')

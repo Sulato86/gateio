@@ -1,7 +1,7 @@
 import os
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-from logging_config import configure_logging
+from utils.logging_config import configure_logging
 from dotenv import load_dotenv
 from gate_api import Configuration, ApiClient, SpotApi, ApiException
 from tenacity import retry, stop_after_attempt, wait_fixed

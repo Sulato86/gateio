@@ -1,5 +1,5 @@
 from api.api_gateio import GateIOAPI, api_client
-from logging_config import configure_logging
+from utils.logging_config import configure_logging
 
 # Konfigurasi logging untuk balances_loader
 logger = configure_logging('balances_loader', 'logs/balances_loader.log')

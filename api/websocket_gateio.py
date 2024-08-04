@@ -1,10 +1,9 @@
-import json
 import asyncio
+import json
 import websockets
 import time
-from logging_config import configure_logging
+from utils.logging_config import configure_logging
 
-# Konfigurasi logging untuk balances_loader
 logger = configure_logging('websocket_gateio', 'logs/websocket_gateio.log')
 
 class GateIOWebSocket:
@@ -106,8 +105,10 @@ class GateIOWebSocket:
         Args:
             pair (str): Pasangan mata uang baru untuk disubscribe.
         """
+        logger.debug(f"Memulai subscription untuk pair baru: {pair}")
         if pair not in self.pairs:
             self.pairs.append(pair)
+            logger.debug(f"Pair {pair} ditambahkan ke daftar pairs: {self.pairs}")
             if self.websocket:
                 logger.info(f"Subscribing to new pair: {pair}")
                 await self.subscribe([pair])
@@ -115,6 +116,7 @@ class GateIOWebSocket:
             else:
                 logger.error("WebSocket is not connected. Adding to pending pairs.")
                 self.pending_pairs.append(pair)
+                logger.debug(f"Pair {pair} ditambahkan ke pending pairs: {self.pending_pairs}")
 
     async def unsubscribe_from_pair(self, pair):
         """
