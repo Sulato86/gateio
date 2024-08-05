@@ -1,3 +1,4 @@
+```mermaid
 classDiagram
     class MainWindow {
         +__init__()
@@ -7,6 +8,7 @@ classDiagram
         +add_pair()
         +contextMenuEvent(event: QContextMenuEvent)
         +delete_selected_rows()
+        +export_csv()
     }
 
     class BalancesTableModel {
@@ -79,6 +81,11 @@ classDiagram
         +secret: str
     }
 
+    class CsvHandler {
+        +get_marketdata(tableView: QTableView)
+        +export_csv(tableView: QTableView)
+    }
+
     MainWindow "1" --> "1" WebSocketHandler : contains
     WebSocketHandler "1" --> "1" GateIOWebSocket : contains
 
@@ -91,6 +98,8 @@ classDiagram
     WebSocketHandler --> GateIOWebSocket : add_pair() calls is_valid_pair()
     WebSocketHandler --> GateIOWebSocket : on_message() calls on_message()
     GateIOWebSocket --> WebSocketHandler : on_message() calls on_message()
+    MainWindow --> CsvHandler : export_csv() calls export_csv()
+    CsvHandler --> MainWindow : uses get_marketdata()
 
     MainWindow o-- BalancesTableModel : uses
     MainWindow o-- MarketDataTableModel : uses
@@ -110,3 +119,5 @@ classDiagram
     ApiClient o-- SpotApi : uses
     GateIOAPI o-- ApiClient : uses
     GateIOAPI o-- SpotApi : uses
+
+    

@@ -8,6 +8,7 @@ from loaders.balances_loader import load_balances
 from models.balances_table_model import BalancesTableModel
 from control.websocket_handler import WebSocketHandler
 from models.market_data_table_model import MarketDataTableModel
+from control.csv_handler import export_csv  # Impor fungsi export_csv
 
 logger = configure_logging('main_window', 'logs/main_window.log')
 
@@ -32,6 +33,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.timer.start(500)
 
         self.lineEdit_addpair.returnPressed.connect(self.add_pair)
+        self.pushButton_exportmarketdata.clicked.connect(lambda: export_csv(self.tableView_marketdata))  # Hubungkan tombol dengan fungsi ekspor
 
     def run_asyncio_loop(self):
         try:
