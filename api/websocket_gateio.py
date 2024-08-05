@@ -2,6 +2,7 @@ import asyncio
 import json
 import websockets
 import time
+from typing import Callable, List, Optional
 from utils.logging_config import configure_logging
 
 logger = configure_logging('websocket_gateio', 'logs/websocket_gateio.log')
@@ -11,13 +12,13 @@ class GateIOWebSocket:
     Kelas untuk berinteraksi dengan WebSocket Gate.io.
     """
 
-    def __init__(self, message_callback, pairs=None):
+    def __init__(self, message_callback: Callable, pairs: Optional[List[str]] = None):
         """
         Inisialisasi GateIOWebSocket.
 
         Args:
-            message_callback (function): Callback untuk menangani pesan yang diterima.
-            pairs (list): Daftar pasangan mata uang untuk disubscribe.
+            message_callback (Callable): Callback untuk menangani pesan yang diterima.
+            pairs (Optional[List[str]]): Daftar pasangan mata uang untuk disubscribe.
         """
         logger.debug("Inisialisasi GateIOWebSocket")
         self.message_callback = message_callback
@@ -25,10 +26,12 @@ class GateIOWebSocket:
         self.pairs = pairs if pairs else []
         self.websocket = None
         self.pending_pairs = []
+        self.connected = False
+
         if not self.pairs:
             logger.error("Pairs list is empty. Please provide at least one pair.")
 
-    async def on_message(self, message):
+    async def on_message(self, message: str):
         """
         Menghandle pesan yang diterima dari WebSocket.
 
@@ -39,16 +42,19 @@ class GateIOWebSocket:
         try:
             data = json.loads(message)
             logger.info(f"Received message: {data}")
-            if asyncio.iscoroutinefunction(self.message_callback):
-                await self.message_callback(data)
+            if callable(self.message_callback):
+                if asyncio.iscoroutinefunction(self.message_callback):
+                    await self.message_callback(data)
+                else:
+                    self.message_callback(data)
             else:
-                self.message_callback(data)
+                logger.error("message_callback is not callable")
         except json.JSONDecodeError as e:
             logger.error(f"JSON decode error: {e} - message: {message}")
         except Exception as e:
             logger.error(f"Error processing message: {e}")
 
-    async def on_error(self, error):
+    async def on_error(self, error: Exception):
         """
         Menghandle error yang terjadi pada WebSocket.
 
@@ -62,8 +68,9 @@ class GateIOWebSocket:
         Menghandle penutupan koneksi WebSocket.
         """
         logger.info("WebSocket closed")
+        self.connected = False
 
-    async def on_open(self, websocket):
+    async def on_open(self, websocket: websockets.WebSocketClientProtocol):
         """
         Dipanggil saat koneksi WebSocket dibuka.
 
@@ -72,6 +79,7 @@ class GateIOWebSocket:
         """
         logger.info("WebSocket opened")
         self.websocket = websocket
+        self.connected = True
         await self.subscribe(self.pairs)
         logger.info(f"Subscribed to pairs: {self.pairs}")
 
@@ -80,12 +88,12 @@ class GateIOWebSocket:
             logger.info(f"Subscribed to pending pairs: {self.pending_pairs}")
             self.pending_pairs = []
 
-    async def subscribe(self, pairs):
+    async def subscribe(self, pairs: List[str]):
         """
         Subscribe ke channel untuk pasangan mata uang tertentu.
 
         Args:
-            pairs (list): Daftar pasangan mata uang untuk disubscribe.
+            pairs (List[str]): Daftar pasangan mata uang untuk disubscribe.
         """
         if not pairs:
             logger.error("Subscribe failed: No pairs provided")
@@ -103,7 +111,7 @@ class GateIOWebSocket:
         except Exception as e:
             logger.error(f"Error sending subscribe message: {e}")
 
-    async def subscribe_to_pair(self, pair):
+    async def subscribe_to_pair(self, pair: str):
         """
         Menambah subscription ke pasangan mata uang baru.
 
@@ -115,7 +123,7 @@ class GateIOWebSocket:
             self.pairs.append(pair)
             logger.debug(f"Pair {pair} ditambahkan ke daftar pairs: {self.pairs}")
             try:
-                if self.websocket:
+                if self.connected:
                     logger.info(f"Subscribing to new pair: {pair}")
                     await self.subscribe([pair])
                     logger.info(f"Subscribed to new pair: {pair}")
@@ -126,7 +134,7 @@ class GateIOWebSocket:
             except Exception as e:
                 logger.error(f"Error subscribing to pair {pair}: {e}")
 
-    async def unsubscribe_from_pair(self, pair):
+    async def unsubscribe_from_pair(self, pair: str):
         """
         Unsubscribe dari pasangan mata uang tertentu.
 
@@ -136,7 +144,7 @@ class GateIOWebSocket:
         if pair in self.pairs:
             self.pairs.remove(pair)
             try:
-                if self.websocket and self.websocket.open:
+                if self.connected:
                     message = {
                         "time": int(time.time()),
                         "channel": "spot.tickers",
@@ -170,9 +178,22 @@ class GateIOWebSocket:
             except websockets.ConnectionClosed as e:
                 logger.error(f"WebSocket connection closed: {e}")
                 retry_count += 1
+                logger.info(f"Attempting to reconnect: Retry {retry_count} of {max_retries}")
                 await asyncio.sleep(5 * retry_count)
             except Exception as e:
                 logger.error(f"Unexpected error: {e}")
                 retry_count += 1
+                logger.info(f"Attempting to reconnect: Retry {retry_count} of {max_retries}")
                 await asyncio.sleep(5 * retry_count)
         logger.error("Max retries reached, exiting run loop")
+
+"""# Contoh penggunaan
+async def example_message_handler(message):
+    print(f"Received message: {message}")
+
+# Inisialisasi dan jalankan WebSocket
+pairs = ["BTC_USDT", "ETH_USDT"]
+websocket_client = GateIOWebSocket(message_callback=example_message_handler, pairs=pairs)
+
+# Mulai loop
+asyncio.run(websocket_client.run())"""
