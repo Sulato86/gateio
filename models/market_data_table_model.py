@@ -2,6 +2,7 @@ from PyQt5.QtCore import QAbstractTableModel, Qt
 from PyQt5.QtGui import QColor, QBrush, QFont
 from utils.logging_config import configure_logging
 
+# Konfigurasi logger untuk MarketDataTableModel
 logger = configure_logging('market_data_table_model', 'logs/market_data_table_model.log')
 
 class MarketDataTableModel(QAbstractTableModel):
@@ -35,7 +36,7 @@ class MarketDataTableModel(QAbstractTableModel):
         logger.debug("Mengambil data untuk index (%d, %d): %s", index.row(), index.column(), value)
 
         if role == Qt.DisplayRole:
-            if index.column() in [2, 4]:
+            if index.column() in [2, 4]:  # Kolom untuk persentase perubahan dan volume
                 try:
                     return f"{float(value):.2f}"
                 except ValueError:
@@ -43,22 +44,26 @@ class MarketDataTableModel(QAbstractTableModel):
             return value
 
         if role == Qt.BackgroundRole:
-            try:
-                change_percentage = float(self._data[index.row()][2])
-                if change_percentage < 0:
-                    return QBrush(QColor('red'))
-                elif change_percentage > 0:
-                    return QBrush(QColor('green'))
-            except ValueError:
-                return None
+            if index.column() == 2:  # Kolom untuk persentase perubahan
+                try:
+                    change_percentage = float(value)
+                    if change_percentage < 0:
+                        return QBrush(QColor('red'))
+                    elif change_percentage > 0:
+                        return QBrush(QColor('green'))
+                except ValueError:
+                    logger.warning("Gagal memparse persentase perubahan: %s", value)
+                    return None
 
         if role == Qt.ForegroundRole:
-            try:
-                change_percentage = float(self._data[index.row()][2])
-                if change_percentage < 0 or change_percentage > 0:
-                    return QBrush(QColor('white'))
-            except ValueError:
-                return None
+            if index.column() == 2:  # Kolom untuk persentase perubahan
+                try:
+                    change_percentage = float(value)
+                    if change_percentage < 0 or change_percentage > 0:
+                        return QBrush(QColor('white'))
+                except ValueError:
+                    logger.warning("Gagal memparse persentase perubahan: %s", value)
+                    return None
 
         return None
 
