@@ -1,6 +1,5 @@
 import sys
 import asyncio
-import os
 from PyQt5.QtWidgets import QApplication, QMainWindow, QHeaderView, QMessageBox, QMenu
 from PyQt5.QtCore import QTimer, Qt
 from ui.ui_main_window import Ui_MainWindow
@@ -36,8 +35,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.ws_handler = WebSocketHandler(self.update_market_data)
 
         self.timer = QTimer()
-        self.timer.timeout.connect(self.ws_handler.run_asyncio_loop)
-        self.timer.start(100)
+        self.timer.timeout.connect(self.run_asyncio_loop)
+        self.timer.start(500)  # Interval diubah menjadi 500 milidetik
 
         self.lineEdit_addpair.returnPressed.connect(self.add_pair)
 
@@ -45,7 +44,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         """
         Menjalankan loop asyncio.
         """
-        self.ws_handler.run_asyncio_loop()
+        try:
+            self.ws_handler.run_asyncio_loop()
+        except Exception as e:
+            logger.error(f"Error in asyncio loop: {e}")
 
     def load_balances(self):
         """
@@ -88,10 +90,16 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         logger.debug(f"Menambahkan pasangan mata uang baru: {pair}")
         if pair:
             try:
-                self.ws_handler.add_pair(pair)
-                QMessageBox.information(self, 'Pasangan Mata Uang Ditambahkan', f'Pasangan mata uang {pair} berhasil ditambahkan.')
-                self.lineEdit_addpair.clear()
-                logger.info(f"Pasangan mata uang {pair} berhasil ditambahkan")
+                # Menggunakan asyncio.run untuk menjalankan coroutine dari add_pair
+                loop = asyncio.get_event_loop()
+                is_added = loop.run_until_complete(self.ws_handler.add_pair(pair))
+                if is_added:
+                    QMessageBox.information(self, 'Pasangan Mata Uang Ditambahkan', f'Pasangan mata uang {pair} berhasil ditambahkan.')
+                    self.lineEdit_addpair.clear()
+                    logger.info(f"Pasangan mata uang {pair} berhasil ditambahkan")
+                else:
+                    QMessageBox.warning(self, 'Input Error', f'Pasangan mata uang {pair} tidak valid atau sudah ada.')
+                    logger.warning(f"Pasangan mata uang {pair} tidak valid atau sudah ada")
             except Exception as e:
                 QMessageBox.critical(self, 'Error', f'Gagal menambahkan pasangan mata uang: {e}')
                 logger.error(f"Gagal menambahkan pasangan mata uang: {e}")

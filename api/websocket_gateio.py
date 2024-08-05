@@ -1,3 +1,4 @@
+import aiohttp
 import asyncio
 import json
 import websockets
@@ -187,13 +188,8 @@ class GateIOWebSocket:
                 await asyncio.sleep(5 * retry_count)
         logger.error("Max retries reached, exiting run loop")
 
-"""# Contoh penggunaan
-async def example_message_handler(message):
-    print(f"Received message: {message}")
-
-# Inisialisasi dan jalankan WebSocket
-pairs = ["BTC_USDT", "ETH_USDT"]
-websocket_client = GateIOWebSocket(message_callback=example_message_handler, pairs=pairs)
-
-# Mulai loop
-asyncio.run(websocket_client.run())"""
+    async def is_valid_pair(self, pair):
+        async with aiohttp.ClientSession() as session:
+            url = f"https://api.gateio.ws/api/v4/spot/currency_pairs/{pair}"
+            async with session.get(url) as response:
+                return response.status == 200

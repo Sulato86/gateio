@@ -81,15 +81,36 @@ class WebSocketHandler:
         except Exception as e:
             logger.error(f"Unexpected error: {e}")
 
-    def add_pair(self, pair):
+    async def add_pair(self, pair):
+        """
+        Menambahkan pair baru ke WebSocketHandler.
+
+        Args:
+            pair (str): Pasangan mata uang yang akan ditambahkan.
+        """
         logger.debug(f"Menambahkan pair baru: {pair}")
+        if not pair:
+            logger.warning("Pair tidak valid atau kosong")
+            return False
+
+        if pair in self.pairs:
+            logger.warning(f"Pair {pair} sudah ada dalam pairs")
+            return False
+
+        is_valid = await self.gateio_ws.is_valid_pair(pair)
+        if not is_valid:
+            logger.warning(f"Pair {pair} tidak valid di gate.io")
+            return False
+
         try:
             self.deleted_pairs.discard(pair)
             self.pairs.add(pair)
-            asyncio.run_coroutine_threadsafe(self.gateio_ws.subscribe_to_pair(pair), self.loop)
+            await self.gateio_ws.subscribe_to_pair(pair)
             logger.debug(f"Pair {pair} berhasil ditambahkan")
+            return True
         except Exception as e:
             logger.error(f"Error saat menambahkan pair {pair}: {e}")
+            return False
 
     def remove_pair(self, pair):
         logger.debug(f"Menghapus pair: {pair}")
