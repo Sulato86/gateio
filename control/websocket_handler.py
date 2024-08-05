@@ -1,9 +1,11 @@
 import asyncio
 import time
+from concurrent.futures import ThreadPoolExecutor
 from utils.logging_config import configure_logging
 from api.websocket_gateio import GateIOWebSocket
 
 logger = configure_logging('websocket_handler', 'logs/websocket_handler.log')
+executor = ThreadPoolExecutor()
 
 class WebSocketHandler:
     def __init__(self, on_data_received):
@@ -31,7 +33,8 @@ class WebSocketHandler:
     async def process_queue(self):
         while True:
             data = await self.data_queue.get()
-            self.process_message(data)
+            if data:
+                self.process_message(data)
 
     async def on_message(self, data):
         await self.data_queue.put(data)
@@ -63,13 +66,11 @@ class WebSocketHandler:
             ]
             logger.debug(f"Market entry yang diterima: {market_entry}")
 
-            updated = False
             for i, entry in enumerate(self.market_data):
                 if entry[1] == market_entry[1]:
                     self.market_data[i] = market_entry
-                    updated = True
                     break
-            if not updated:
+            else:
                 self.market_data.append(market_entry)
 
             logger.debug(f"Market data yang diperbarui: {self.market_data}")
@@ -114,3 +115,13 @@ class WebSocketHandler:
         for pair in pairs:
             self.remove_pair(pair)
             self.remove_pair_from_market_data(pair)
+
+    async def run_blocking_operation(self):
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(executor, self.blocking_operation)
+        logger.debug(f"Blocking operation result: {result}")
+
+    def blocking_operation(self):
+        # Simulasi operasi yang memakan waktu
+        time.sleep(2)
+        return "Hasil operasi blocking"
