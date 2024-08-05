@@ -8,7 +8,7 @@ from loaders.balances_loader import load_balances
 from models.balances_table_model import BalancesTableModel
 from control.websocket_handler import WebSocketHandler
 from models.market_data_table_model import MarketDataTableModel
-from control.csv_handler import export_csv  # Impor fungsi export_csv
+from control.csv_handler import export_csv, import_csv  # Impor fungsi import_csv dan export_csv
 
 logger = configure_logging('main_window', 'logs/main_window.log')
 
@@ -27,6 +27,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.tableView_marketdata.setSelectionMode(self.tableView_marketdata.ExtendedSelection)
 
         self.ws_handler = WebSocketHandler(self.update_market_data)
+        self.ws_handler.market_data_updated.connect(self.update_market_data)
 
         self.timer = QTimer()
         self.timer.timeout.connect(self.run_asyncio_loop)
@@ -34,6 +35,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         self.lineEdit_addpair.returnPressed.connect(self.add_pair)
         self.pushButton_exportmarketdata.clicked.connect(lambda: export_csv(self.tableView_marketdata))  # Hubungkan tombol dengan fungsi ekspor
+        self.pushButton_importmarketdata.clicked.connect(self.import_market_data)  # Hubungkan tombol dengan fungsi impor
 
     def run_asyncio_loop(self):
         try:
@@ -108,6 +110,17 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         else:
             QMessageBox.warning(self, 'Tidak Ada Baris Terpilih', 'Pilih baris yang akan dihapus.')
             logger.warning("Tidak ada baris terpilih untuk dihapus")
+
+    def import_market_data(self):
+        headers, data = import_csv(self.tableView_marketdata)
+        if headers and data:
+            self.market_data_model.import_data(headers, data)
+            pairs = [row[1] for row in data]
+            asyncio.run_coroutine_threadsafe(self.ws_handler.add_pairs_from_csv(pairs), self.ws_handler.loop)
+            QMessageBox.information(self, 'Impor Sukses', 'Data berhasil diimpor dari file CSV.')
+            logger.info("Data berhasil diimpor dari file CSV")
+        else:
+            logger.warning("Tidak ada data yang diimpor atau terjadi kesalahan saat mengimpor")
 
 if __name__ == "__main__":
     logger.debug("Menjalankan aplikasi main_window.py")

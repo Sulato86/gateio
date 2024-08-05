@@ -3,12 +3,16 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from utils.logging_config import configure_logging
 from api.websocket_gateio import GateIOWebSocket
+from PyQt5.QtCore import QObject, pyqtSignal
 
 logger = configure_logging('websocket_handler', 'logs/websocket_handler.log')
 executor = ThreadPoolExecutor()
 
-class WebSocketHandler:
+class WebSocketHandler(QObject):
+    market_data_updated = pyqtSignal(list)
+
     def __init__(self, on_data_received):
+        super().__init__()
         logger.debug("Inisialisasi WebSocketHandler")
         self.on_data_received = on_data_received
         self.market_data = []
@@ -16,11 +20,11 @@ class WebSocketHandler:
         self.deleted_pairs = set()
         self.data_queue = asyncio.Queue()
         self.gateio_ws = GateIOWebSocket(self.on_message, pairs=list(self.pairs))
-        
+
         # Create a new event loop for this handler
         self.loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self.loop)
-        
+
         asyncio.ensure_future(self.gateio_ws.run(), loop=self.loop)
         asyncio.ensure_future(self.process_queue(), loop=self.loop)
         logger.debug("WebSocketHandler berhasil diinisialisasi dengan pairs: %s", self.pairs)
@@ -78,7 +82,7 @@ class WebSocketHandler:
                 self.market_data.append(market_entry)
 
             logger.debug(f"Market data yang diperbarui: {self.market_data}")
-            self.on_data_received(self.market_data)
+            self.market_data_updated.emit(self.market_data)
             logger.info("Data market berhasil dimuat dan ditampilkan di tabel")
         except KeyError as e:
             logger.error(f"Error saat memuat data market: KeyError - {e}")
@@ -110,6 +114,11 @@ class WebSocketHandler:
             logger.error(f"Error saat menambahkan pair {pair}: {e}")
             return False
 
+    async def add_pairs_from_csv(self, pairs):
+        logger.debug(f"Menambahkan pairs dari CSV: {pairs}")
+        for pair in pairs:
+            await self.add_pair(pair)
+
     def remove_pair(self, pair):
         logger.debug(f"Menghapus pair: {pair}")
         if pair in self.pairs:
@@ -126,7 +135,7 @@ class WebSocketHandler:
     def remove_pair_from_market_data(self, pair):
         logger.debug(f"Menghapus pair {pair} dari market data")
         self.market_data = [entry for entry in self.market_data if entry[1] != pair]
-        self.on_data_received(self.market_data)
+        self.market_data_updated.emit(self.market_data)
         logger.info(f"Pair {pair} berhasil dihapus dari data market. Market data: {self.market_data}")
 
     def delete_selected_rows(self, pairs):

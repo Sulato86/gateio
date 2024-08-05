@@ -37,3 +37,21 @@ def export_csv(tableView):
         except Exception as e:
             logger.error(f"Gagal mengekspor data ke file CSV: {e}")
             QMessageBox.critical(tableView, "Error", f"Gagal mengekspor data ke file CSV: {e}")
+
+def import_csv(tableView):
+    options = QFileDialog.Options()
+    file_path, _ = QFileDialog.getOpenFileName(tableView, "Open CSV", "", "CSV Files (*.csv);;All Files (*)", options=options)
+    if file_path:
+        try:
+            data = []
+            with open(file_path, mode='r') as file:
+                reader = csv.reader(file)
+                headers = next(reader)  # Assuming the first row is the header
+                for row in reader:
+                    data.append(row)
+            logger.debug(f"Data yang diimpor dari file: {file_path} adalah: {data}")
+            return headers, data
+        except Exception as e:
+            logger.error(f"Gagal mengimpor data dari file CSV: {e}")
+            QMessageBox.critical(tableView, "Error", f"Gagal mengimpor data dari file CSV: {e}")
+            return None, None

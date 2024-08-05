@@ -82,3 +82,25 @@ class MarketDataTableModel(QAbstractTableModel):
             logger.info("Data tabel berhasil diperbarui")
         except Exception as e:
             logger.error(f"Gagal memperbarui data tabel: {e}")
+
+    def import_data(self, headers, new_data):
+        logger.debug("Mengimpor data baru: %s", new_data)
+        try:
+            # Membuat dictionary untuk akses data cepat berdasarkan pasangan mata uang
+            existing_data = {row[1]: row for row in self._data}
+
+            for row in new_data:
+                pair = row[1]
+                if pair in existing_data:
+                    existing_data[pair] = row  # Memperbarui data yang ada
+                else:
+                    existing_data[pair] = row  # Menambahkan data baru
+
+            # Memperbarui data dalam format list untuk model tabel
+            self._data = list(existing_data.values())
+
+            self.beginResetModel()
+            self.endResetModel()
+            logger.info("Data tabel berhasil diimpor dan diperbarui")
+        except Exception as e:
+            logger.error(f"Gagal mengimpor data tabel: {e}")
