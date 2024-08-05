@@ -10,17 +10,16 @@ class WebSocketHandler:
         logger.debug("Inisialisasi WebSocketHandler")
         self.on_data_received = on_data_received
         self.market_data = []
-        self.pairs = []
+        self.pairs = set()
         self.deleted_pairs = set()
-        self.gateio_ws = GateIOWebSocket(self.on_message, pairs=self.pairs)
+        self.data_queue = asyncio.Queue()
+        self.gateio_ws = GateIOWebSocket(self.on_message, pairs=list(self.pairs))
         self.loop = asyncio.get_event_loop()
         asyncio.ensure_future(self.gateio_ws.run())
+        asyncio.ensure_future(self.process_queue())
         logger.debug("WebSocketHandler berhasil diinisialisasi dengan pairs: %s", self.pairs)
 
     def run_asyncio_loop(self):
-        """
-        Menjalankan loop asyncio.
-        """
         logger.debug("Menjalankan run_asyncio_loop")
         try:
             self.loop.call_soon_threadsafe(self.loop.stop)
@@ -29,18 +28,28 @@ class WebSocketHandler:
         except Exception as e:
             logger.error(f"Error saat menjalankan asyncio loop: {e}")
 
-    def on_message(self, data):
-        """
-        Memproses data yang diterima dari WebSocket.
+    async def process_queue(self):
+        while True:
+            data = await self.data_queue.get()
+            self.process_message(data)
 
-        Args:
-            data (dict): Data dari WebSocket.
-        """
+    async def on_message(self, data):
+        await self.data_queue.put(data)
+
+    def process_message(self, data):
         logger.debug("Menerima data market dari WebSocket")
         logger.debug(f"Data diterima: {data}")
         try:
-            result = data['result']
-            currency_pair = result['currency_pair']
+            result = data.get('result')
+            if not result:
+                logger.warning("Data result tidak ditemukan dalam payload")
+                return
+
+            currency_pair = result.get('currency_pair')
+            if not currency_pair:
+                logger.warning("currency_pair tidak ditemukan dalam result")
+                return
+
             if currency_pair in self.deleted_pairs:
                 logger.debug(f"Pasangan {currency_pair} dihapus, tidak diperbarui")
                 return
@@ -48,11 +57,12 @@ class WebSocketHandler:
             market_entry = [
                 time.strftime('%d-%m-%Y %H:%M:%S', time.localtime(data['time'])),
                 currency_pair,
-                result['change_percentage'],
-                result['last'],
-                result['base_volume']
+                result.get('change_percentage', 0.0),
+                result.get('last', 0.0),
+                result.get('base_volume', 0.0)
             ]
             logger.debug(f"Market entry yang diterima: {market_entry}")
+
             updated = False
             for i, entry in enumerate(self.market_data):
                 if entry[1] == market_entry[1]:
@@ -61,37 +71,26 @@ class WebSocketHandler:
                     break
             if not updated:
                 self.market_data.append(market_entry)
+
             logger.debug(f"Market data yang diperbarui: {self.market_data}")
             self.on_data_received(self.market_data)
             logger.info("Data market berhasil dimuat dan ditampilkan di tabel")
         except KeyError as e:
-            logger.error(f"Error saat memuat data market: {e}")
+            logger.error(f"Error saat memuat data market: KeyError - {e}")
         except Exception as e:
             logger.error(f"Unexpected error: {e}")
 
     def add_pair(self, pair):
-        """
-        Menambahkan pasangan mata uang baru ke WebSocket.
-
-        Args:
-            pair (str): Pasangan mata uang baru.
-        """
         logger.debug(f"Menambahkan pair baru: {pair}")
         try:
             self.deleted_pairs.discard(pair)
-            self.pairs.append(pair)
+            self.pairs.add(pair)
             asyncio.run_coroutine_threadsafe(self.gateio_ws.subscribe_to_pair(pair), self.loop)
             logger.debug(f"Pair {pair} berhasil ditambahkan")
         except Exception as e:
             logger.error(f"Error saat menambahkan pair {pair}: {e}")
 
     def remove_pair(self, pair):
-        """
-        Menghapus pasangan mata uang dari WebSocket.
-
-        Args:
-            pair (str): Pasangan mata uang yang akan dihapus.
-        """
         logger.debug(f"Menghapus pair: {pair}")
         if pair in self.pairs:
             try:
@@ -105,24 +104,12 @@ class WebSocketHandler:
             logger.warning(f"Pair {pair} tidak ditemukan dalam pairs. Pairs: {self.pairs}")
 
     def remove_pair_from_market_data(self, pair):
-        """
-        Menghapus pasangan mata uang dari data market.
-
-        Args:
-            pair (str): Pasangan mata uang yang akan dihapus.
-        """
         logger.debug(f"Menghapus pair {pair} dari market data")
         self.market_data = [entry for entry in self.market_data if entry[1] != pair]
         self.on_data_received(self.market_data)
         logger.info(f"Pair {pair} berhasil dihapus dari data market. Market data: {self.market_data}")
 
     def delete_selected_rows(self, pairs):
-        """
-        Menghapus pasangan mata uang yang dipilih dari data market dan WebSocket.
-
-        Args:
-            pairs (list): Daftar pasangan mata uang yang dipilih.
-        """
         logger.debug(f"Menghapus selected rows: {pairs}")
         for pair in pairs:
             self.remove_pair(pair)

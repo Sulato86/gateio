@@ -1,7 +1,6 @@
 import sys
 import asyncio
 import os
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from PyQt5.QtWidgets import QApplication, QMainWindow, QHeaderView, QMessageBox, QMenu
 from PyQt5.QtCore import QTimer, Qt
 from ui.ui_main_window import Ui_MainWindow
