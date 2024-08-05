@@ -12,18 +12,11 @@ from models.market_data_table_model import MarketDataTableModel
 logger = configure_logging('main_window', 'logs/main_window.log')
 
 class MainWindow(QMainWindow, Ui_MainWindow):
-    """
-    Kelas untuk menangani logika utama aplikasi dan interaksi pengguna.
-    """
-
     def __init__(self):
-        """
-        Inisialisasi MainWindow.
-        """
         logger.debug("Inisialisasi MainWindow")
         super(MainWindow, self).__init__()
         self.setupUi(self)
-        self.load_balances()
+        self.load_balances()  # Tidak lagi menggunakan asyncio.run
 
         self.market_data = []
         self.market_data_model = MarketDataTableModel(self.market_data)
@@ -32,27 +25,21 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.tableView_marketdata.setSelectionBehavior(self.tableView_marketdata.SelectRows)
         self.tableView_marketdata.setSelectionMode(self.tableView_marketdata.ExtendedSelection)
 
-        self.ws_handler = WebSocketHandler(self.update_market_data)
+        self.ws_handler = WebSocketHandler(self.update_market_data)  # Menggunakan event loop baru di dalam WebSocketHandler
 
         self.timer = QTimer()
         self.timer.timeout.connect(self.run_asyncio_loop)
-        self.timer.start(500)  # Interval diubah menjadi 500 milidetik
+        self.timer.start(500)
 
         self.lineEdit_addpair.returnPressed.connect(self.add_pair)
 
     def run_asyncio_loop(self):
-        """
-        Menjalankan loop asyncio.
-        """
         try:
             self.ws_handler.run_asyncio_loop()
         except Exception as e:
             logger.error(f"Error in asyncio loop: {e}")
 
     def load_balances(self):
-        """
-        Memuat saldo akun dan menampilkannya di tabel.
-        """
         logger.debug("Memuat saldo akun di MainWindow")
         try:
             table_data = load_balances()
@@ -64,36 +51,21 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             logger.error(f"Error saat memuat saldo akun: {e}")
 
     def update_market_data(self, market_data):
-        """
-        Memperbarui data market di tabel.
-
-        Args:
-            market_data (list): Data market terbaru.
-        """
         logger.debug("Memperbarui data market di tabel dengan data: %s", market_data)
-
-        # Simpan indeks yang dipilih
         selected_indexes = self.tableView_marketdata.selectionModel().selectedIndexes()
-
         self.market_data_model.update_data(market_data)
         logger.info("Data market di tabel berhasil diperbarui")
-
-        # Kembalikan sorotan
         for index in selected_indexes:
             self.tableView_marketdata.selectionModel().select(index, self.tableView_marketdata.selectionModel().Select)
 
     def add_pair(self):
-        """
-        Menambahkan pasangan mata uang baru berdasarkan input pengguna.
-        """
         pair = self.lineEdit_addpair.text().upper()
         logger.debug(f"Menambahkan pasangan mata uang baru: {pair}")
         if pair:
             try:
-                # Menggunakan asyncio.run untuk menjalankan coroutine dari add_pair
                 loop = asyncio.get_event_loop()
                 is_added = loop.run_until_complete(self.ws_handler.add_pair(pair))
-                if is_added:
+                if (is_added):
                     QMessageBox.information(self, 'Pasangan Mata Uang Ditambahkan', f'Pasangan mata uang {pair} berhasil ditambahkan.')
                     self.lineEdit_addpair.clear()
                     logger.info(f"Pasangan mata uang {pair} berhasil ditambahkan")
@@ -108,9 +80,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             logger.warning("Input pasangan mata uang tidak valid")
 
     def contextMenuEvent(self, event):
-        """
-        Menangani event klik kanan untuk menampilkan menu konteks.
-        """
         context_menu = QMenu(self)
         delete_action = context_menu.addAction("Hapus Baris")
         action = context_menu.exec_(self.mapToGlobal(event.pos()))
@@ -118,9 +87,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.delete_selected_rows()
 
     def delete_selected_rows(self):
-        """
-        Menghapus baris yang dipilih dari tabel market data.
-        """
         selected_indexes = self.tableView_marketdata.selectionModel().selectedRows()
         if selected_indexes:
             rows = sorted(index.row() for index in selected_indexes)

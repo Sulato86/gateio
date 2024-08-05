@@ -1,0 +1,95 @@
+```mermaid
+classDiagram
+    class GateIOWebSocket {
+      +init(message_callback: Callable, pairs: Optional[List[str]] = None)
+      +on_message(message: str)
+      +on_error(error: Exception)
+      +on_close()
+      +on_open(websocket: websockets.WebSocketClientProtocol)
+      +subscribe(pairs: List[str])
+      +subscribe_to_pair(pair: str)
+      +unsubscribe_from_pair(pair: str)
+      +run()
+      +is_valid_pair(pair: str)
+    }
+
+    class WebSocketHandler {
+      +init(on_data_received)
+      +run_asyncio_loop()
+      +process_queue()
+      +on_message(data: dict)
+      +process_message(data: dict)
+      +add_pair(pair: str)
+      +remove_pair(pair: str)
+      +remove_pair_from_market_data(pair: str)
+      +delete_selected_rows(pairs: List[str])
+      +run_blocking_operation()
+      +blocking_operation()
+    }
+
+    class MainWindow {
+        +init()
+        +run_asyncio_loop()
+        +load_balances()
+        +update_market_data(market_data: List[dict])
+        +add_pair()
+        +contextMenuEvent(event: QContextMenuEvent)
+        +delete_selected_rows()
+    }
+
+    class Configuration {
+      +key: str
+      +secret: str
+    }
+
+    class ApiClient {
+      +configuration: Configuration
+    }
+
+    class SpotApi {
+      +list_spot_accounts()
+      +list_orders(currency_pair: str, status: str)
+      +cancel_order(currency_pair: str, order_id: str)
+    }
+
+    class GateIOAPI {
+      +init(api_client: ApiClient)
+      +get_balances()
+      +get_order_history(currency_pair: str)
+      +cancel_order(currency_pair: str, order_id: str)
+    }
+
+    class BalancesLoader {
+      +load_balances() List[Union[str, float]]
+    }
+
+    MainWindow "1" --> "1" WebSocketHandler : contains
+    MainWindow --> WebSocketHandler : update_market_data() calls process_message()
+    MainWindow --> WebSocketHandler : add_pair() calls add_pair()
+    MainWindow --> WebSocketHandler : delete_selected_rows() calls delete_selected_rows()
+
+    MainWindow o-- BalancesTableModel : uses
+    MainWindow o-- MarketDataTableModel : uses
+    MainWindow o-- load_balances : uses
+
+    MainWindow <|-- QApplication : uses
+    MainWindow <|-- QMainWindow : inherits
+
+    WebSocketHandler <|-- ThreadPoolExecutor : uses
+    WebSocketHandler "1" --> "1" GateIOWebSocket : contains
+    WebSocketHandler --> GateIOWebSocket : add_pair() calls subscribe_to_pair()
+    WebSocketHandler --> GateIOWebSocket : remove_pair() calls unsubscribe_from_pair()
+    WebSocketHandler --> GateIOWebSocket : add_pair() calls is_valid_pair()
+    WebSocketHandler --> GateIOWebSocket : on_message() calls on_message()
+    GateIOWebSocket --> WebSocketHandler : on_message() calls on_message()
+
+    Configuration o-- ApiClient : configures
+    ApiClient o-- SpotApi : uses
+    GateIOAPI o-- ApiClient : uses
+    GateIOAPI o-- SpotApi : uses
+
+    BalancesLoader --> GateIOAPI : uses
+    GateIOAPI --> SpotApi : uses list_spot_accounts()
+    GateIOAPI --> SpotApi : uses list_orders()
+    GateIOAPI --> SpotApi : uses cancel_order()
+    MainWindow --> BalancesLoader : load_balances() calls load_balances()

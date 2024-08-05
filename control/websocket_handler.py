@@ -16,9 +16,13 @@ class WebSocketHandler:
         self.deleted_pairs = set()
         self.data_queue = asyncio.Queue()
         self.gateio_ws = GateIOWebSocket(self.on_message, pairs=list(self.pairs))
-        self.loop = asyncio.get_event_loop()
-        asyncio.ensure_future(self.gateio_ws.run())
-        asyncio.ensure_future(self.process_queue())
+        
+        # Create a new event loop for this handler
+        self.loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(self.loop)
+        
+        asyncio.ensure_future(self.gateio_ws.run(), loop=self.loop)
+        asyncio.ensure_future(self.process_queue(), loop=self.loop)
         logger.debug("WebSocketHandler berhasil diinisialisasi dengan pairs: %s", self.pairs)
 
     def run_asyncio_loop(self):
@@ -82,12 +86,6 @@ class WebSocketHandler:
             logger.error(f"Unexpected error: {e}")
 
     async def add_pair(self, pair):
-        """
-        Menambahkan pair baru ke WebSocketHandler.
-
-        Args:
-            pair (str): Pasangan mata uang yang akan ditambahkan.
-        """
         logger.debug(f"Menambahkan pair baru: {pair}")
         if not pair:
             logger.warning("Pair tidak valid atau kosong")
@@ -138,11 +136,9 @@ class WebSocketHandler:
             self.remove_pair_from_market_data(pair)
 
     async def run_blocking_operation(self):
-        loop = asyncio.get_event_loop()
-        result = await loop.run_in_executor(executor, self.blocking_operation)
+        result = await self.loop.run_in_executor(executor, self.blocking_operation)
         logger.debug(f"Blocking operation result: {result}")
 
     def blocking_operation(self):
-        # Simulasi operasi yang memakan waktu
         time.sleep(2)
         return "Hasil operasi blocking"

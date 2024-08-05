@@ -1,33 +1,31 @@
 from api.api_gateio import GateIOAPI, api_client
 from utils.logging_config import configure_logging
+from typing import List, Union
 
 logger = configure_logging('balances_loader', 'logs/balances_loader.log')
-
-# Inisialisasi objek API
 api = GateIOAPI(api_client)
 
-def load_balances():
-    """
-    Memuat saldo akun dari API Gate.io.
-
-    Returns:
-        list: Data saldo dalam bentuk list yang siap ditampilkan di tabel.
-    """
+def load_balances() -> List[Union[str, float]]:
     logger.debug("Memuat saldo akun di balances_loader")
     try:
         balances = api.get_balances()
         logger.debug(f"Balances received: {balances}")
-        spot_balances = balances.get('spot', [])
         
-        if isinstance(spot_balances, list):
-            logger.debug(f"Spot balances is a list dengan {len(spot_balances)} items.")
-        else:
+        if not balances or 'spot' not in balances:
+            logger.error("Balances data tidak ditemukan atau tidak valid")
+            return [["-", 0, 0]]
+        
+        spot_balances = balances['spot']
+        
+        if not isinstance(spot_balances, list):
             logger.error(f"Spot balances is not a list. Received: {type(spot_balances)}")
+            return [["-", 0, 0]]
 
         table_data = []
 
         for balance in spot_balances:
             logger.debug(f"Processing balance: {balance}")
+            # Menggunakan dot notation untuk mengakses atribut dari objek SpotAccount
             asset = balance.currency
             available = float(balance.available)
             locked = float(balance.locked)
@@ -40,6 +38,9 @@ def load_balances():
 
         logger.info("Saldo akun berhasil dimuat")
         return table_data
+    except KeyError as e:
+        logger.error(f"KeyError saat memuat saldo akun: {e}")
+        return [["-", 0, 0]]
     except Exception as e:
-        logger.error(f"Error saat memuat saldo akun: {e}")
+        logger.error(f"Error tidak terduga saat memuat saldo akun: {e}")
         return [["-", 0, 0]]

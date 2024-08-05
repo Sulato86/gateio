@@ -9,18 +9,7 @@ from utils.logging_config import configure_logging
 logger = configure_logging('websocket_gateio', 'logs/websocket_gateio.log')
 
 class GateIOWebSocket:
-    """
-    Kelas untuk berinteraksi dengan WebSocket Gate.io.
-    """
-
     def __init__(self, message_callback: Callable, pairs: Optional[List[str]] = None):
-        """
-        Inisialisasi GateIOWebSocket.
-
-        Args:
-            message_callback (Callable): Callback untuk menangani pesan yang diterima.
-            pairs (Optional[List[str]]): Daftar pasangan mata uang untuk disubscribe.
-        """
         logger.debug("Inisialisasi GateIOWebSocket")
         self.message_callback = message_callback
         self.ws_url = "wss://api.gateio.ws/ws/v4/"
@@ -33,12 +22,6 @@ class GateIOWebSocket:
             logger.error("Pairs list is empty. Please provide at least one pair.")
 
     async def on_message(self, message: str):
-        """
-        Menghandle pesan yang diterima dari WebSocket.
-
-        Args:
-            message (str): Pesan dalam bentuk string JSON.
-        """
         logger.debug("on_message dipanggil")
         try:
             data = json.loads(message)
@@ -56,28 +39,13 @@ class GateIOWebSocket:
             logger.error(f"Error processing message: {e}")
 
     async def on_error(self, error: Exception):
-        """
-        Menghandle error yang terjadi pada WebSocket.
-
-        Args:
-            error (Exception): Error yang terjadi.
-        """
         logger.error(f"WebSocket error: {error}")
 
     async def on_close(self):
-        """
-        Menghandle penutupan koneksi WebSocket.
-        """
         logger.info("WebSocket closed")
         self.connected = False
 
     async def on_open(self, websocket: websockets.WebSocketClientProtocol):
-        """
-        Dipanggil saat koneksi WebSocket dibuka.
-
-        Args:
-            websocket (WebSocketClientProtocol): Objek WebSocket.
-        """
         logger.info("WebSocket opened")
         self.websocket = websocket
         self.connected = True
@@ -90,12 +58,6 @@ class GateIOWebSocket:
             self.pending_pairs = []
 
     async def subscribe(self, pairs: List[str]):
-        """
-        Subscribe ke channel untuk pasangan mata uang tertentu.
-
-        Args:
-            pairs (List[str]): Daftar pasangan mata uang untuk disubscribe.
-        """
         if not pairs:
             logger.error("Subscribe failed: No pairs provided")
             return
@@ -113,12 +75,6 @@ class GateIOWebSocket:
             logger.error(f"Error sending subscribe message: {e}")
 
     async def subscribe_to_pair(self, pair: str):
-        """
-        Menambah subscription ke pasangan mata uang baru.
-
-        Args:
-            pair (str): Pasangan mata uang baru untuk disubscribe.
-        """
         logger.debug(f"Memulai subscription untuk pair baru: {pair}")
         if pair not in self.pairs:
             self.pairs.append(pair)
@@ -136,12 +92,6 @@ class GateIOWebSocket:
                 logger.error(f"Error subscribing to pair {pair}: {e}")
 
     async def unsubscribe_from_pair(self, pair: str):
-        """
-        Unsubscribe dari pasangan mata uang tertentu.
-
-        Args:
-            pair (str): Pasangan mata uang untuk diunsubscribe.
-        """
         if pair in self.pairs:
             self.pairs.remove(pair)
             try:
@@ -163,9 +113,6 @@ class GateIOWebSocket:
             logger.warning(f"Pair {pair} is not in the list. Cannot unsubscribe.")
 
     async def run(self):
-        """
-        Menjalankan loop WebSocket untuk menghubungkan dan menangani pesan.
-        """
         logger.debug("Memulai websocket run loop")
         retry_count = 0
         max_retries = 5
