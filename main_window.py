@@ -49,14 +49,19 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             logger.info("Saldo akun berhasil dimuat dan ditampilkan di tabel")
         except Exception as e:
             logger.error(f"Error saat memuat saldo akun: {e}")
+            QMessageBox.critical(self, 'Error', f'Gagal memuat saldo akun: {e}')
 
     def update_market_data(self, market_data):
         logger.debug("Memperbarui data market di tabel dengan data: %s", market_data)
-        selected_indexes = self.tableView_marketdata.selectionModel().selectedIndexes()
-        self.market_data_model.update_data(market_data)
-        logger.info("Data market di tabel berhasil diperbarui")
-        for index in selected_indexes:
-            self.tableView_marketdata.selectionModel().select(index, self.tableView_marketdata.selectionModel().Select)
+        try:
+            selected_indexes = self.tableView_marketdata.selectionModel().selectedIndexes()
+            self.market_data_model.update_data(market_data)
+            logger.info("Data market di tabel berhasil diperbarui")
+            for index in selected_indexes:
+                self.tableView_marketdata.selectionModel().select(index, self.tableView_marketdata.selectionModel().Select)
+        except Exception as e:
+            logger.error(f"Error saat memperbarui data market: {e}")
+            QMessageBox.critical(self, 'Error', f'Gagal memperbarui data market: {e}')
 
     def add_pair(self):
         pair = self.lineEdit_addpair.text().upper()
@@ -91,10 +96,16 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if selected_indexes:
             rows = sorted(index.row() for index in selected_indexes)
             pairs = [self.market_data_model._data[row][1] for row in rows]
-            self.ws_handler.delete_selected_rows(pairs)
-            QMessageBox.information(self, 'Baris Dihapus', 'Baris yang dipilih berhasil dihapus.')
+            try:
+                self.ws_handler.delete_selected_rows(pairs)
+                QMessageBox.information(self, 'Baris Dihapus', 'Baris yang dipilih berhasil dihapus.')
+                logger.info("Baris yang dipilih berhasil dihapus")
+            except Exception as e:
+                QMessageBox.critical(self, 'Error', f'Gagal menghapus baris yang dipilih: {e}')
+                logger.error(f"Gagal menghapus baris yang dipilih: {e}")
         else:
             QMessageBox.warning(self, 'Tidak Ada Baris Terpilih', 'Pilih baris yang akan dihapus.')
+            logger.warning("Tidak ada baris terpilih untuk dihapus")
 
 if __name__ == "__main__":
     logger.debug("Menjalankan aplikasi main_window.py")

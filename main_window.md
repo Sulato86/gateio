@@ -1,4 +1,3 @@
-```mermaid
 classDiagram
     class MainWindow {
         +__init__()
@@ -20,6 +19,10 @@ classDiagram
 
     class MarketDataTableModel {
         +__init__(data: List[List])
+        +data(index: QModelIndex, role: int) Any
+        +rowCount(index: QModelIndex) int
+        +columnCount(index: QModelIndex) int
+        +headerData(section: int, orientation: Qt.Orientation, role: int) Any
         +update_data(new_data: List[dict])
     }
 
@@ -54,6 +57,28 @@ classDiagram
         +load_balances() List[Union[str, float]]
     }
 
+    class GateIOAPI {
+        +__init__(api_client: ApiClient)
+        +get_balances()
+        +get_order_history(currency_pair: str)
+        +cancel_order(currency_pair: str, order_id: str)
+    }
+
+    class ApiClient {
+        +configuration: Configuration
+    }
+
+    class SpotApi {
+        +list_spot_accounts()
+        +list_orders(currency_pair: str, status: str)
+        +cancel_order(currency_pair: str, order_id: str)
+    }
+
+    class Configuration {
+        +key: str
+        +secret: str
+    }
+
     MainWindow "1" --> "1" WebSocketHandler : contains
     WebSocketHandler "1" --> "1" GateIOWebSocket : contains
 
@@ -80,28 +105,6 @@ classDiagram
     GateIOAPI --> SpotApi : uses list_spot_accounts()
     GateIOAPI --> SpotApi : uses list_orders()
     GateIOAPI --> SpotApi : uses cancel_order()
-
-    class Configuration {
-        +key: str
-        +secret: str
-    }
-
-    class ApiClient {
-        +configuration: Configuration
-    }
-
-    class SpotApi {
-        +list_spot_accounts()
-        +list_orders(currency_pair: str, status: str)
-        +cancel_order(currency_pair: str, order_id: str)
-    }
-
-    class GateIOAPI {
-        +__init__(api_client: ApiClient)
-        +get_balances()
-        +get_order_history(currency_pair: str)
-        +cancel_order(currency_pair: str, order_id: str)
-    }
 
     Configuration o-- ApiClient : configures
     ApiClient o-- SpotApi : uses
