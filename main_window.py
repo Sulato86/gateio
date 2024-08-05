@@ -13,10 +13,10 @@ logger = configure_logging('main_window', 'logs/main_window.log')
 
 class MainWindow(QMainWindow, Ui_MainWindow):
     def __init__(self):
-        logger.debug("Inisialisasi MainWindow")
         super(MainWindow, self).__init__()
+        logger.debug("Inisialisasi MainWindow")
         self.setupUi(self)
-        self.load_balances()  # Tidak lagi menggunakan asyncio.run
+        self.load_balances()
 
         self.market_data = []
         self.market_data_model = MarketDataTableModel(self.market_data)
@@ -25,7 +25,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.tableView_marketdata.setSelectionBehavior(self.tableView_marketdata.SelectRows)
         self.tableView_marketdata.setSelectionMode(self.tableView_marketdata.ExtendedSelection)
 
-        self.ws_handler = WebSocketHandler(self.update_market_data)  # Menggunakan event loop baru di dalam WebSocketHandler
+        self.ws_handler = WebSocketHandler(self.update_market_data)
 
         self.timer = QTimer()
         self.timer.timeout.connect(self.run_asyncio_loop)
@@ -65,7 +65,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             try:
                 loop = asyncio.get_event_loop()
                 is_added = loop.run_until_complete(self.ws_handler.add_pair(pair))
-                if (is_added):
+                if is_added:
                     QMessageBox.information(self, 'Pasangan Mata Uang Ditambahkan', f'Pasangan mata uang {pair} berhasil ditambahkan.')
                     self.lineEdit_addpair.clear()
                     logger.info(f"Pasangan mata uang {pair} berhasil ditambahkan")
