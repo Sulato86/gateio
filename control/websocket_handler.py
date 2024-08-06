@@ -1,5 +1,6 @@
 import asyncio
 import time
+import threading
 from concurrent.futures import ThreadPoolExecutor
 from utils.logging_config import configure_logging
 from api.websocket_gateio import GateIOWebSocket
@@ -24,18 +25,16 @@ class WebSocketHandler(QObject):
         self.loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self.loop)
 
-        asyncio.ensure_future(self.gateio_ws.run(), loop=self.loop)
-        asyncio.ensure_future(self.process_queue(), loop=self.loop)
+        asyncio.ensure_future(self.gateio_ws.run())
+        asyncio.ensure_future(self.process_queue())
         logger.debug("WebSocketHandler berhasil diinisialisasi dengan pairs: %s", self.pairs)
 
-    def run_asyncio_loop(self):
-        logger.debug("Menjalankan run_asyncio_loop")
-        try:
-            self.loop.call_soon_threadsafe(self.loop.stop)
-            self.loop.run_forever()
-            logger.debug("Asyncio loop berjalan")
-        except Exception as e:
-            logger.error(f"Error saat menjalankan asyncio loop: {e}")
+    def start(self):
+        self.thread = threading.Thread(target=self.run_loop, daemon=True)
+        self.thread.start()
+
+    def run_loop(self):
+        self.loop.run_forever()
 
     async def process_queue(self):
         while True:

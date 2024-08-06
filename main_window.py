@@ -1,7 +1,6 @@
 import sys
 import asyncio
 from PyQt5.QtWidgets import QApplication, QMainWindow, QHeaderView, QMessageBox, QMenu
-from PyQt5.QtCore import QTimer, Qt
 from ui.ui_main_window import Ui_MainWindow
 from utils.logging_config import configure_logging
 from loaders.balances_loader import load_balances
@@ -28,20 +27,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         self.ws_handler = WebSocketHandler(self.update_market_data)
         self.ws_handler.market_data_updated.connect(self.update_market_data)
-
-        self.timer = QTimer()
-        self.timer.timeout.connect(self.run_asyncio_loop)
-        self.timer.start(100)
+        self.ws_handler.start()
 
         self.lineEdit_addpair.returnPressed.connect(self.add_pair)
         self.pushButton_exportmarketdata.clicked.connect(lambda: export_csv(self.tableView_marketdata))
         self.pushButton_importmarketdata.clicked.connect(self.import_market_data)
-
-    def run_asyncio_loop(self):
-        try:
-            self.ws_handler.run_asyncio_loop()
-        except Exception as e:
-            logger.error(f"Error in asyncio loop: {e}")
 
     def load_balances(self):
         logger.debug("Memuat saldo akun di MainWindow")
@@ -72,8 +62,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         logger.debug(f"Menambahkan pasangan mata uang baru: {pair}")
         if pair:
             try:
-                loop = asyncio.get_event_loop()
-                is_added = loop.run_until_complete(self.ws_handler.add_pair(pair))
+                # Gunakan asyncio.run_coroutine_threadsafe
+                future = asyncio.run_coroutine_threadsafe(self.ws_handler.add_pair(pair), self.ws_handler.loop)
+                is_added = future.result()
                 if is_added:
                     QMessageBox.information(self, 'Pasangan Mata Uang Ditambahkan', f'Pasangan mata uang {pair} berhasil ditambahkan.')
                     self.lineEdit_addpair.clear()
