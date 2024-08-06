@@ -26,7 +26,6 @@ def export_csv(tableView):
             data = get_marketdata(tableView)
             model = tableView.model()
             headers = [model.headerData(i, Qt.Horizontal, Qt.DisplayRole) for i in range(model.columnCount(QModelIndex()))]
-
             logger.debug(f"Mengekspor data ke file: {file_path}")
             with open(file_path, mode='w', newline='') as file:
                 writer = csv.writer(file)

@@ -80,7 +80,6 @@ class WebSocketHandler(QObject):
                 self.market_data.append(market_entry)
 
             logger.debug(f"Market data yang diperbarui: {self.market_data}")
-            # Hanya sinyal tanpa memperbarui table view
             self.market_data_updated.emit(self.market_data)
             if self.on_data_received:
                 self.on_data_received(self.market_data)

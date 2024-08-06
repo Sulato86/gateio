@@ -60,14 +60,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         logger.debug(f"Menambahkan pasangan mata uang baru: {pair}")
         if pair:
             try:
-                # Gunakan asyncio.run_coroutine_threadsafe
                 future = asyncio.run_coroutine_threadsafe(self.ws_handler.add_pair(pair), self.ws_handler.loop)
                 is_added = future.result()
                 if is_added:
                     QMessageBox.information(self, 'Pasangan Mata Uang Ditambahkan', f'Pasangan mata uang {pair} berhasil ditambahkan.')
                     self.lineEdit_addpair.clear()
                     logger.info(f"Pasangan mata uang {pair} berhasil ditambahkan")
-                    # Panggil on_data_received untuk memperbarui tabel
                     self.on_data_received(self.ws_handler.market_data)
                 else:
                     QMessageBox.warning(self, 'Input Error', f'Pasangan mata uang {pair} tidak valid atau sudah ada.')
@@ -118,10 +116,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         order = self.proxy_model.sortOrder()
         selected_indexes = self.tableView_marketdata.selectionModel().selectedIndexes()
         selected_pairs = [self.market_data_model.get_data(self.proxy_model.mapToSource(index).row(), 1) for index in selected_indexes]
-
         self.proxy_model.sort(logicalIndex, Qt.DescendingOrder if order == Qt.AscendingOrder else Qt.AscendingOrder)
-
-        # Restore selection after sorting
         selection_model = self.tableView_marketdata.selectionModel()
         selection_model.clearSelection()
         for pair in selected_pairs:
