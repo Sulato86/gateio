@@ -11,7 +11,7 @@ class MarketDataTableModel(QAbstractTableModel):
         self._headers = ["TIME", "PAIR", "24%", "PRICE", "VOLUME"]
         logger.debug("MarketDataTableModel diinisialisasi dengan data awal: %s", data)
 
-    def data(self, index, role):
+    def data(self, index, role=Qt.DisplayRole):
         if not index.isValid():
             return None
 
@@ -102,3 +102,24 @@ class MarketDataTableModel(QAbstractTableModel):
             logger.info("Data tabel berhasil diimpor dan diperbarui")
         except Exception as e:
             logger.error(f"Gagal mengimpor data tabel: {e}")
+
+    def remove_rows(self, rows):
+        logger.debug("Menghapus baris: %s", rows)
+        try:
+            self.beginResetModel()
+            self._data = [row for i, row in enumerate(self._data) if i not in rows]
+            self.endResetModel()
+            logger.info("Baris berhasil dihapus")
+        except Exception as e:
+            logger.error(f"Gagal menghapus baris: {e}")
+
+    def get_data(self, row, column):
+        if row < 0 or row >= len(self._data) or column < 0 or column >= len(self._headers):
+            return None
+        return self._data[row][column]
+
+    def find_row_by_pair(self, pair):
+        for row in range(len(self._data)):
+            if self._data[row][1] == pair:
+                return row
+        return -1

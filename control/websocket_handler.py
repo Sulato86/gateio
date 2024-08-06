@@ -80,7 +80,10 @@ class WebSocketHandler(QObject):
                 self.market_data.append(market_entry)
 
             logger.debug(f"Market data yang diperbarui: {self.market_data}")
+            # Hanya sinyal tanpa memperbarui table view
             self.market_data_updated.emit(self.market_data)
+            if self.on_data_received:
+                self.on_data_received(self.market_data)
             logger.info("Data market berhasil dimuat dan ditampilkan di tabel")
         except KeyError as e:
             logger.error(f"Error saat memuat data market: KeyError - {e}")
@@ -134,6 +137,8 @@ class WebSocketHandler(QObject):
         logger.debug(f"Menghapus pair {pair} dari market data")
         self.market_data = [entry for entry in self.market_data if entry[1] != pair]
         self.market_data_updated.emit(self.market_data)
+        if self.on_data_received:
+            self.on_data_received(self.market_data)
         logger.info(f"Pair {pair} berhasil dihapus dari data market. Market data: {self.market_data}")
 
     def delete_selected_rows(self, pairs):
