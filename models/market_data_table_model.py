@@ -2,7 +2,7 @@ from PyQt5.QtCore import QAbstractTableModel, Qt
 from PyQt5.QtGui import QColor, QBrush, QFont
 from utils.logging_config import configure_logging
 
-logger = configure_logging('market_data_table_model', 'logs/market_data_table_model.log')
+configure_logging('market_data_table_model', 'logs/market_data_table_model.log')
 
 class MarketDataTableModel(QAbstractTableModel):
     def __init__(self, data):
@@ -55,9 +55,8 @@ class MarketDataTableModel(QAbstractTableModel):
             self.beginResetModel()
             self._data = new_data
             self.endResetModel()
-            logger.debug("Market data updated successfully.")
-        except Exception as e:
-            logger.error(f"Error updating market data: {e}")
+        except Exception:
+            pass
 
     def rowCount(self, index):
         return len(self._data)

@@ -12,7 +12,7 @@ from models.market_data_table_model import MarketDataTableModel
 from control.csv_handler import export_csv, import_csv
 from models.sortable_proxy_model import SortableProxyModel
 
-logger = configure_logging('main_window', 'logs/main_window.log')
+configure_logging('main_window', 'logs/main_window.log')
 
 class MainWindow(QMainWindow, Ui_MainWindow):
     def __init__(self):
@@ -48,11 +48,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             selected_pairs = self.save_selection()
             self.market_data_model.update_data(market_data)
             self.restore_selection(selected_pairs)
-            logger.debug("Data received and processed successfully.")
         except Exception as e:
-            logger.error(f"Error processing received data: {e}")
             QMessageBox.critical(self, 'Error', f'Terjadi kesalahan saat memperbarui data market: {e}')
-
 
     def add_pair(self):
         pair = self.lineEdit_addpair.text().upper()
@@ -122,11 +119,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                     source_index = self.proxy_model.mapToSource(index)
                     pair = self.market_data_model.get_data(source_index.row(), 1)
                     selected_pairs.append(pair)
-                    logger.debug(f"Saving selection - Row: {source_index.row()}, Pair: {pair}")
-            logger.debug(f"Selected pairs saved: {selected_pairs}")
             return selected_pairs
         except Exception as e:
-            logger.error(f"Error saving selection: {e}")
             return []
 
     def restore_selection(self, selected_pairs):
@@ -138,12 +132,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 if row != -1:
                     index = self.proxy_model.mapFromSource(self.market_data_model.index(row, 0))
                     selection_model.select(index, QItemSelectionModel.Select | QItemSelectionModel.Rows)
-                    logger.debug(f"Restoring selection - Row: {row}, Pair: {pair}")
-            logger.debug(f"Selection restored for pairs: {selected_pairs}")
         except Exception as e:
-            logger.error(f"Error restoring selection: {e}")
-
-
+            pass
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

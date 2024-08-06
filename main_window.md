@@ -117,8 +117,15 @@ classDiagram
     MainWindow --> WebSocketHandler : import_market_data() calls add_pairs_from_csv()
     MainWindow --> BalancesLoader : load_balances() calls load_balances()
     MainWindow --> BalancesTableModel : load_balances() creates BalancesTableModel
-    MainWindow --> MarketDataTableModel : update_market_data() calls update_data()
+    MainWindow --> MarketDataTableModel : on_data_received() calls update_data()
     MainWindow --> MarketDataTableModel : import_market_data() calls import_data()
+    MainWindow --> MarketDataTableModel : delete_selected_rows() calls remove_rows()
+    MainWindow --> MarketDataTableModel : save_selection() calls get_data()
+    MainWindow --> MarketDataTableModel : restore_selection() calls find_row_by_pair()
+    MainWindow --> MarketDataTableModel : rowCount()
+    MainWindow --> MarketDataTableModel : columnCount()
+    MainWindow --> MarketDataTableModel : data()
+    MainWindow --> MarketDataTableModel : headerData()
     MainWindow --> CsvHandler : export_csv() calls export_csv(tableView)
     MainWindow --> CsvHandler : import_market_data() calls import_csv(tableView)
     MainWindow --> SortableProxyModel : uses sortable_proxy_model
