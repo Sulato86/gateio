@@ -121,6 +121,7 @@ classDiagram
     MainWindow --> MarketDataTableModel : import_market_data() calls import_data()
     MainWindow --> CsvHandler : export_csv() calls export_csv(tableView)
     MainWindow --> CsvHandler : import_market_data() calls import_csv(tableView)
+    MainWindow --> SortableProxyModel : uses sortable_proxy_model
     MainWindow --> Ui_MainWindow : setupUi() calls setupUi()
     CsvHandler --> MainWindow : import_csv() returns headers, data
     CsvHandler --> MainWindow : export_csv() calls get_marketdata(tableView)
@@ -130,4 +131,4 @@ classDiagram
     WebSocketHandler --> GateIOWebSocket : on_message() calls on_message()
     GateIOWebSocket --> WebSocketHandler : on_message() calls on_message()
     BalancesLoader --> GateIOAPI : load_balances() calls get_balances()
-    MainWindow --> SortableProxyModel : uses sortable_proxy_model
+    

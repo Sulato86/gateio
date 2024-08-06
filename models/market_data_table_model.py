@@ -9,25 +9,23 @@ class MarketDataTableModel(QAbstractTableModel):
         super().__init__()
         self._data = data
         self._headers = ["TIME", "PAIR", "24%", "PRICE", "VOLUME"]
-        logger.debug("MarketDataTableModel diinisialisasi dengan data awal: %s", data)
 
     def data(self, index, role=Qt.DisplayRole):
         if not index.isValid():
             return None
 
-        value = self._data[index.row()][index.column()]
-        logger.debug("Mengambil data untuk index (%d, %d): %s", index.row(), index.column(), value)
+        try:
+            value = self._data[index.row()][index.column()]
 
-        if role == Qt.DisplayRole:
-            if index.column() in [2, 4]:
-                try:
-                    return f"{float(value):.2f}"
-                except ValueError:
-                    return value
-            return value
+            if role == Qt.DisplayRole:
+                if index.column() in [2, 4]:
+                    try:
+                        return f"{float(value):.2f}"
+                    except ValueError:
+                        return value
+                return value
 
-        if role == Qt.BackgroundRole:
-            if index.column() == 2:
+            if role == Qt.BackgroundRole and index.column() == 2:
                 try:
                     change_percentage = float(value)
                     if change_percentage < 0:
@@ -35,83 +33,68 @@ class MarketDataTableModel(QAbstractTableModel):
                     elif change_percentage > 0:
                         return QBrush(QColor('green'))
                 except ValueError:
-                    logger.warning("Gagal memparse persentase perubahan: %s", value)
                     return None
 
-        if role == Qt.ForegroundRole:
-            if index.column() == 2:
+            if role == Qt.ForegroundRole and index.column() == 2:
                 try:
                     change_percentage = float(value)
                     if change_percentage < 0 or change_percentage > 0:
                         return QBrush(QColor('white'))
                 except ValueError:
-                    logger.warning("Gagal memparse persentase perubahan: %s", value)
                     return None
 
-        return None
+        except IndexError:
+            return None
+        except Exception:
+            return None
 
-    def rowCount(self, index):
-        count = len(self._data)
-        logger.debug("Jumlah baris: %d", count)
-        return count
-
-    def columnCount(self, index):
-        count = len(self._headers)
-        logger.debug("Jumlah kolom: %d", count)
-        return count
-
-    def headerData(self, section, orientation, role):
-        if role == Qt.DisplayRole:
-            if orientation == Qt.Horizontal:
-                header = self._headers[section]
-                logger.debug("Header data untuk kolom %d: %s", section, header)
-                return header
-        if role == Qt.FontRole and orientation == Qt.Horizontal:
-            font = QFont()
-            font.setBold(True)
-            logger.debug("Font untuk header kolom %d diatur menjadi bold", section)
-            return font
         return None
 
     def update_data(self, new_data):
-        logger.debug("Memperbarui data tabel dengan data baru: %s", new_data)
         try:
             self.beginResetModel()
             self._data = new_data
             self.endResetModel()
-            logger.info("Data tabel berhasil diperbarui")
-        except Exception as e:
-            logger.error(f"Gagal memperbarui data tabel: {e}")
+        except Exception:
+            pass
+
+    def rowCount(self, index):
+        return len(self._data)
+
+    def columnCount(self, index):
+        return len(self._headers)
+
+    def headerData(self, section, orientation, role):
+        if role == Qt.DisplayRole and orientation == Qt.Horizontal:
+            return self._headers[section]
+        if role == Qt.FontRole and orientation == Qt.Horizontal:
+            font = QFont()
+            font.setBold(True)
+            return font
+        return None
 
     def import_data(self, headers, new_data):
-        logger.debug("Mengimpor data baru: %s", new_data)
         try:
             existing_data = {row[1]: row for row in self._data}
 
             for row in new_data:
                 pair = row[1]
-                if pair in existing_data:
-                    existing_data[pair] = row
-                else:
-                    existing_data[pair] = row
+                existing_data[pair] = row
 
             self._data = list(existing_data.values())
 
             self.beginResetModel()
             self.endResetModel()
-            logger.info("Data tabel berhasil diimpor dan diperbarui")
-        except Exception as e:
-            logger.error(f"Gagal mengimpor data tabel: {e}")
+        except Exception:
+            pass
 
     def remove_rows(self, rows):
-        logger.debug("Menghapus baris: %s", rows)
         try:
             self.beginResetModel()
             self._data = [row for i, row in enumerate(self._data) if i not in rows]
             self.endResetModel()
-            logger.info("Baris berhasil dihapus")
-        except Exception as e:
-            logger.error(f"Gagal menghapus baris: {e}")
+        except Exception:
+            pass
 
     def get_data(self, row, column):
         if row < 0 or row >= len(self._data) or column < 0 or column >= len(self._headers):
