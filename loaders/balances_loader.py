@@ -25,7 +25,6 @@ def load_balances() -> List[Union[str, float]]:
 
         for balance in spot_balances:
             logger.debug(f"Processing balance: {balance}")
-            # Menggunakan dot notation untuk mengakses atribut dari objek SpotAccount
             asset = balance.currency
             available = float(balance.available)
             locked = float(balance.locked)

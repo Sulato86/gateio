@@ -21,7 +21,6 @@ class WebSocketHandler(QObject):
         self.data_queue = asyncio.Queue()
         self.gateio_ws = GateIOWebSocket(self.on_message, pairs=list(self.pairs))
 
-        # Create a new event loop for this handler
         self.loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self.loop)
 

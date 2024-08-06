@@ -8,7 +8,7 @@ from loaders.balances_loader import load_balances
 from models.balances_table_model import BalancesTableModel
 from control.websocket_handler import WebSocketHandler
 from models.market_data_table_model import MarketDataTableModel
-from control.csv_handler import export_csv, import_csv  # Impor fungsi import_csv dan export_csv
+from control.csv_handler import export_csv, import_csv
 
 logger = configure_logging('main_window', 'logs/main_window.log')
 
@@ -31,11 +31,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         self.timer = QTimer()
         self.timer.timeout.connect(self.run_asyncio_loop)
-        self.timer.start(500)
+        self.timer.start(100)
 
         self.lineEdit_addpair.returnPressed.connect(self.add_pair)
-        self.pushButton_exportmarketdata.clicked.connect(lambda: export_csv(self.tableView_marketdata))  # Hubungkan tombol dengan fungsi ekspor
-        self.pushButton_importmarketdata.clicked.connect(self.import_market_data)  # Hubungkan tombol dengan fungsi impor
+        self.pushButton_exportmarketdata.clicked.connect(lambda: export_csv(self.tableView_marketdata))
+        self.pushButton_importmarketdata.clicked.connect(self.import_market_data)
 
     def run_asyncio_loop(self):
         try:

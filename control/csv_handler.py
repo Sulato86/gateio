@@ -24,7 +24,7 @@ def export_csv(tableView):
     if file_path:
         try:
             data = get_marketdata(tableView)
-            model = tableView.model()  # Dapatkan model dari tableView
+            model = tableView.model()
             headers = [model.headerData(i, Qt.Horizontal, Qt.DisplayRole) for i in range(model.columnCount(QModelIndex()))]
 
             logger.debug(f"Mengekspor data ke file: {file_path}")
@@ -46,7 +46,7 @@ def import_csv(tableView):
             data = []
             with open(file_path, mode='r') as file:
                 reader = csv.reader(file)
-                headers = next(reader)  # Assuming the first row is the header
+                headers = next(reader)
                 for row in reader:
                     data.append(row)
             logger.debug(f"Data yang diimpor dari file: {file_path} adalah: {data}")

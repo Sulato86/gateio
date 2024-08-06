@@ -86,17 +86,15 @@ class MarketDataTableModel(QAbstractTableModel):
     def import_data(self, headers, new_data):
         logger.debug("Mengimpor data baru: %s", new_data)
         try:
-            # Membuat dictionary untuk akses data cepat berdasarkan pasangan mata uang
             existing_data = {row[1]: row for row in self._data}
 
             for row in new_data:
                 pair = row[1]
                 if pair in existing_data:
-                    existing_data[pair] = row  # Memperbarui data yang ada
+                    existing_data[pair] = row
                 else:
-                    existing_data[pair] = row  # Menambahkan data baru
+                    existing_data[pair] = row
 
-            # Memperbarui data dalam format list untuk model tabel
             self._data = list(existing_data.values())
 
             self.beginResetModel()
