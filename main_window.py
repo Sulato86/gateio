@@ -2,6 +2,7 @@ import sys
 import asyncio
 from PyQt5.QtWidgets import QApplication, QMainWindow, QHeaderView, QMessageBox, QMenu
 from PyQt5.QtCore import Qt
+from PyQt5.QtCore import QItemSelectionModel
 from ui.ui_main_window import Ui_MainWindow
 from utils.logging_config import configure_logging
 from loaders.balances_loader import load_balances
@@ -47,8 +48,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             selected_pairs = self.save_selection()
             self.market_data_model.update_data(market_data)
             self.restore_selection(selected_pairs)
+            logger.debug("Data received and processed successfully.")
         except Exception as e:
+            logger.error(f"Error processing received data: {e}")
             QMessageBox.critical(self, 'Error', f'Terjadi kesalahan saat memperbarui data market: {e}')
+
 
     def add_pair(self):
         pair = self.lineEdit_addpair.text().upper()
@@ -112,8 +116,17 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def save_selection(self):
         try:
             selected_indexes = self.tableView_marketdata.selectionModel().selectedIndexes()
-            return [self.market_data_model.get_data(self.proxy_model.mapToSource(index).row(), 1) for index in selected_indexes if index.isValid()]
-        except Exception:
+            selected_pairs = []
+            for index in selected_indexes:
+                if index.isValid():
+                    source_index = self.proxy_model.mapToSource(index)
+                    pair = self.market_data_model.get_data(source_index.row(), 1)
+                    selected_pairs.append(pair)
+                    logger.debug(f"Saving selection - Row: {source_index.row()}, Pair: {pair}")
+            logger.debug(f"Selected pairs saved: {selected_pairs}")
+            return selected_pairs
+        except Exception as e:
+            logger.error(f"Error saving selection: {e}")
             return []
 
     def restore_selection(self, selected_pairs):
@@ -124,9 +137,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 row = self.market_data_model.find_row_by_pair(pair)
                 if row != -1:
                     index = self.proxy_model.mapFromSource(self.market_data_model.index(row, 0))
-                    selection_model.select(index, selection_model.Select | selection_model.Rows)
-        except Exception:
-            pass
+                    selection_model.select(index, QItemSelectionModel.Select | QItemSelectionModel.Rows)
+                    logger.debug(f"Restoring selection - Row: {row}, Pair: {pair}")
+            logger.debug(f"Selection restored for pairs: {selected_pairs}")
+        except Exception as e:
+            logger.error(f"Error restoring selection: {e}")
+
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

@@ -55,8 +55,9 @@ class MarketDataTableModel(QAbstractTableModel):
             self.beginResetModel()
             self._data = new_data
             self.endResetModel()
-        except Exception:
-            pass
+            logger.debug("Market data updated successfully.")
+        except Exception as e:
+            logger.error(f"Error updating market data: {e}")
 
     def rowCount(self, index):
         return len(self._data)
