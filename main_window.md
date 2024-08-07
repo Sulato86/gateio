@@ -103,7 +103,9 @@ classDiagram
     GateIOAPI "1" *-- "1" api_client: uses
 
     %% Spesifikasi fungsi yang berhubungan
+    
     MainWindow ..> BalancesTableModel : load_balances() creates
+
     MainWindow ..> PandaMarketData : __init__() creates
     MainWindow ..> PandaMarketData : on_data_received() calls update_data()
     MainWindow ..> PandaMarketData : import_market_data() calls import_data()
@@ -112,15 +114,15 @@ classDiagram
     MainWindow ..> WebSocketHandler : add_pair() calls add_pair()
     MainWindow ..> WebSocketHandler : import_market_data() calls add_pairs_from_csv()
 
+    WebSocketHandler ..> MainWindow : on_message() calls on_data_received()
+    WebSocketHandler ..> MainWindow : market_data_updated emits signal
+
     WebSocketHandler ..> GateIOWebSocket : on_message() calls on_message()
     WebSocketHandler ..> GateIOWebSocket : add_pair() calls is_valid_pair()
     WebSocketHandler ..> GateIOWebSocket : add_pair() calls subscribe_to_pair()
     WebSocketHandler ..> GateIOWebSocket : remove_pair() calls unsubscribe_from_pair()
 
     WebSocketHandler ..> WebSocketHandler : remove_pair_from_market_data() calls market_data_updated.emit()
-
-    WebSocketHandler ..> MainWindow : on_message() calls on_data_received()
-    WebSocketHandler ..> MainWindow : market_data_updated emits signal
 
     GateIOWebSocket ..> WebSocketHandler : on_message() calls message_callback()
     GateIOWebSocket ..> GateIOWebSocket : run() calls on_open()
