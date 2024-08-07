@@ -3,7 +3,7 @@ from PyQt5.QtCore import QAbstractTableModel, Qt
 from PyQt5.QtGui import QColor, QBrush, QFont
 from utils.logging_config import configure_logging
 
-configure_logging('market_data_table_model', 'logs/market_data_table_model.log')
+logger = configure_logging('panda_market_data', 'logs/panda_market_data.log')
 
 class MarketDataTableModel(QAbstractTableModel):
     def __init__(self, data):

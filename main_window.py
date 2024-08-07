@@ -1,6 +1,7 @@
 import sys
 import asyncio
 from PyQt5.QtWidgets import QApplication, QMainWindow, QHeaderView, QMessageBox
+from PyQt5.QtCore import Qt, QItemSelectionModel  # Add QItemSelectionModel to the import statement
 from ui.ui_main_window import Ui_MainWindow
 from utils.logging_config import configure_logging
 from loaders.balances_loader import load_balances
@@ -9,7 +10,7 @@ from control.websocket_handler import WebSocketHandler
 from models.panda_market_data import MarketDataTableModel
 from control.csv_handler import export_csv, import_csv
 
-configure_logging('main_window', 'logs/main_window.log')
+logger = configure_logging('main_window', 'logs/main_window.log')
 
 class MainWindow(QMainWindow, Ui_MainWindow):
     def __init__(self):
@@ -39,6 +40,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def on_data_received(self, market_data):
         try:
             self.market_data_model.update_data(market_data)
+            selected_pairs = self.save_selection()  # Define selected_pairs variable
             self.restore_selection(selected_pairs)
             logger.debug("Data received and processed successfully.")
         except Exception as e:
@@ -72,15 +74,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         else:
             QMessageBox.warning(self, 'Tidak Ada Data', 'Tidak ada data yang diimpor atau terjadi kesalahan saat mengimpor.')
 
-    def handle_header_clicked(self, logicalIndex):
-        try:
-            order = self.proxy_model.sortOrder()
-            selected_pairs = self.save_selection()
-            self.proxy_model.sort(logicalIndex, Qt.DescendingOrder if order == Qt.AscendingOrder else Qt.AscendingOrder)
-            self.restore_selection(selected_pairs)
-        except Exception as e:
-            QMessageBox.critical(self, 'Error', f'Terjadi kesalahan saat mengurutkan: {e}')
-
     def save_selection(self):
         try:
             selected_indexes = self.tableView_marketdata.selectionModel().selectedIndexes()
@@ -110,7 +103,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             logger.debug(f"Selection restored for pairs: {selected_pairs}")
         except Exception as e:
             logger.error(f"Error restoring selection: {e}")
-
 
 
 if __name__ == "__main__":
