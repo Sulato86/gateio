@@ -54,12 +54,15 @@ class WebSocketHandler(QObject):
             if not timestamp:
                 return
 
+            # Logging data yang diterima
+            logger.info(f"Received data: {result}")
+
             market_entry = [
                 time.strftime('%d-%m-%Y %H:%M:%S', time.localtime(timestamp)),
                 currency_pair,
-                result.get('change_percentage', 0.0),
-                result.get('last', 0.0),
-                result.get('base_volume', 0.0)
+                float(result.get('change_percentage', 0.0)),
+                float(result.get('last', 0.0)),
+                float(result.get('base_volume', 0.0))
             ]
 
             for i, entry in enumerate(self.market_data):
@@ -73,9 +76,11 @@ class WebSocketHandler(QObject):
             if self.on_data_received:
                 self.on_data_received(self.market_data)
         except KeyError as e:
-            pass
+            logger.error(f"KeyError processing message: {e}")
+        except ValueError as e:
+            logger.error(f"ValueError processing message: {e} with data {result}")
         except Exception as e:
-            pass
+            logger.error(f"Error processing message: {e} with data {result}")
 
     async def add_pair(self, pair):
         if not pair:
