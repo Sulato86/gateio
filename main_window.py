@@ -1,7 +1,6 @@
 import sys
 import asyncio
 from PyQt5.QtWidgets import QApplication, QMainWindow, QHeaderView, QMessageBox
-from PyQt5.QtCore import Qt, QItemSelectionModel  # Add QItemSelectionModel to the import statement
 from ui.ui_main_window import Ui_MainWindow
 from utils.logging_config import configure_logging
 from loaders.balances_loader import load_balances
@@ -38,7 +37,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def on_data_received(self, market_data):
         try:
             self.market_data_model.update_data(market_data)
-            logger.debug("Data received and processed successfully.")
         except Exception as e:
             QMessageBox.critical(self, 'Error', f'Terjadi kesalahan saat memperbarui data market: {e}')
 
