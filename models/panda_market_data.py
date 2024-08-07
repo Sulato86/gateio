@@ -5,7 +5,7 @@ from utils.logging_config import configure_logging
 
 logger = configure_logging('panda_market_data', 'logs/panda_market_data.log')
 
-class MarketDataTableModel(QAbstractTableModel):
+class PandaMarketData(QAbstractTableModel):
     def __init__(self, data):
         super().__init__()
         self._headers = ["TIME", "PAIR", "24%", "PRICE", "VOLUME"]

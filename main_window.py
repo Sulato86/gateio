@@ -7,7 +7,7 @@ from utils.logging_config import configure_logging
 from loaders.balances_loader import load_balances
 from models.balances_table_model import BalancesTableModel
 from control.websocket_handler import WebSocketHandler
-from models.panda_market_data import MarketDataTableModel
+from models.panda_market_data import PandaMarketData
 from control.csv_handler import export_csv, import_csv
 
 logger = configure_logging('main_window', 'logs/main_window.log')
@@ -17,7 +17,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         super(MainWindow, self).__init__()
         self.setupUi(self)
         self.load_balances()
-        self.market_data_model = MarketDataTableModel([])
+        self.market_data_model = PandaMarketData([])
         self.tableView_marketdata.setModel(self.market_data_model)
         self.tableView_marketdata.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.ws_handler = WebSocketHandler(self.on_data_received)
