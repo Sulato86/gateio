@@ -74,39 +74,28 @@ classDiagram
         +headerData(section, orientation, role)
     }
 
-    class CSVHandler {
-        +get_marketdata(tableView)
-        +export_csv(tableView)
-        +import_csv(tableView) returns (headers, data)
+    class SortableProxyModel {
+        + lessThan(left: QModelIndex, right: QModelIndex) : bool
     }
 
-    %% Relationships
-    MainWindow --> MarketDataTableModel : uses
-    MainWindow ..> MarketDataTableModel : on_data_received() calls update_data()
-    MainWindow ..> MarketDataTableModel : import_market_data() calls import_data()
-    MainWindow ..> MarketDataTableModel : __init__() initializes
-
-    MainWindow --> WebSocketHandler : uses
-    MainWindow ..> WebSocketHandler : add_pair() calls add_pair()
-    MainWindow ..> WebSocketHandler : import_market_data() calls add_pairs_from_csv()
-    MainWindow ..> WebSocketHandler : __init__() initializes
-    WebSocketHandler ..> MainWindow : market_data_updated signal
-    WebSocketHandler ..> MainWindow : on_data_received callback
-
-    WebSocketHandler --> GateIOWebSocket : uses
-    WebSocketHandler ..> GateIOWebSocket : on_message() callback
-    WebSocketHandler ..> GateIOWebSocket : add_pair() calls is_valid_pair()
-    WebSocketHandler ..> GateIOWebSocket : add_pair() calls subscribe_to_pair()
-    WebSocketHandler ..> GateIOWebSocket : remove_pair() calls unsubscribe_from_pair()
-
-    MainWindow --> BalancesLoader : uses
-    MainWindow ..> BalancesLoader : load_balances() calls load_balances()
-
-    MainWindow --> BalancesTableModel : uses
-    MainWindow ..> BalancesTableModel : load_balances() calls __init__()
-    MainWindow ..> BalancesTableModel : load_balances() calls setModel()
-    MainWindow ..> BalancesTableModel : load_balances() calls headerData()
-
-    MainWindow --> CSVHandler : uses
-    MainWindow ..> CSVHandler : import_market_data() calls import_csv()
-    MainWindow ..> CSVHandler : pushButton_exportmarketdata calls export_csv()
+    MainWindow --> WebSocketHandler : on_data_received() calls process_message()
+    MainWindow --> WebSocketHandler : add_pair() calls add_pair()
+    MainWindow --> WebSocketHandler : delete_selected_rows() calls delete_selected_rows()
+    MainWindow --> WebSocketHandler : import_market_data() calls add_pairs_from_csv()
+    MainWindow --> BalancesLoader : load_balances() calls load_balances()
+    MainWindow --> BalancesTableModel : load_balances() creates BalancesTableModel
+    MainWindow --> MarketDataTableModel : update_market_data() calls update_data()
+    MainWindow --> MarketDataTableModel : import_market_data() calls import_data()
+    MainWindow --> CsvHandler : export_csv() calls export_csv(tableView)
+    MainWindow --> CsvHandler : import_market_data() calls import_csv(tableView)
+    MainWindow --> SortableProxyModel : uses sortable_proxy_model
+    MainWindow --> Ui_MainWindow : setupUi() calls setupUi()
+    CsvHandler --> MainWindow : import_csv() returns headers, data
+    CsvHandler --> MainWindow : export_csv() calls get_marketdata(tableView)
+    WebSocketHandler --> GateIOWebSocket : add_pair() calls subscribe()
+    WebSocketHandler --> GateIOWebSocket : remove_pair() calls unsubscribe()
+    WebSocketHandler --> GateIOWebSocket : add_pair() calls is_valid_pair()
+    WebSocketHandler --> GateIOWebSocket : on_message() calls on_message()
+    GateIOWebSocket --> WebSocketHandler : on_message() calls on_message()
+    BalancesLoader --> GateIOAPI : load_balances() calls get_balances()
+    

@@ -9,7 +9,7 @@ from control.websocket_handler import WebSocketHandler
 from models.panda_market_data import MarketDataTableModel
 from control.csv_handler import export_csv, import_csv
 
-logger = configure_logging('main_window', 'logs/main_window.log')
+configure_logging('main_window', 'logs/main_window.log')
 
 class MainWindow(QMainWindow, Ui_MainWindow):
     def __init__(self):
@@ -39,9 +39,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def on_data_received(self, market_data):
         try:
             self.market_data_model.update_data(market_data)
+            self.restore_selection(selected_pairs)
             logger.debug("Data received and processed successfully.")
         except Exception as e:
-            logger.error(f"Error processing received data: {e}")
             QMessageBox.critical(self, 'Error', f'Terjadi kesalahan saat memperbarui data market: {e}')
 
     def add_pair(self):
@@ -71,6 +71,47 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             QMessageBox.information(self, 'Impor Sukses', 'Data berhasil diimpor dari file CSV.')
         else:
             QMessageBox.warning(self, 'Tidak Ada Data', 'Tidak ada data yang diimpor atau terjadi kesalahan saat mengimpor.')
+
+    def handle_header_clicked(self, logicalIndex):
+        try:
+            order = self.proxy_model.sortOrder()
+            selected_pairs = self.save_selection()
+            self.proxy_model.sort(logicalIndex, Qt.DescendingOrder if order == Qt.AscendingOrder else Qt.AscendingOrder)
+            self.restore_selection(selected_pairs)
+        except Exception as e:
+            QMessageBox.critical(self, 'Error', f'Terjadi kesalahan saat mengurutkan: {e}')
+
+    def save_selection(self):
+        try:
+            selected_indexes = self.tableView_marketdata.selectionModel().selectedIndexes()
+            selected_pairs = []
+            for index in selected_indexes:
+                if index.isValid():
+                    source_index = self.proxy_model.mapToSource(index)
+                    pair = self.market_data_model.get_data(source_index.row(), 1)
+                    selected_pairs.append(pair)
+                    logger.debug(f"Saving selection - Row: {source_index.row()}, Pair: {pair}")
+            logger.debug(f"Selected pairs saved: {selected_pairs}")
+            return selected_pairs
+        except Exception as e:
+            logger.error(f"Error saving selection: {e}")
+            return []
+
+    def restore_selection(self, selected_pairs):
+        try:
+            selection_model = self.tableView_marketdata.selectionModel()
+            selection_model.clearSelection()
+            for pair in selected_pairs:
+                row = self.market_data_model.find_row_by_pair(pair)
+                if row != -1:
+                    index = self.proxy_model.mapFromSource(self.market_data_model.index(row, 0))
+                    selection_model.select(index, QItemSelectionModel.Select | QItemSelectionModel.Rows)
+                    logger.debug(f"Restoring selection - Row: {row}, Pair: {pair}")
+            logger.debug(f"Selection restored for pairs: {selected_pairs}")
+        except Exception as e:
+            logger.error(f"Error restoring selection: {e}")
+
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
