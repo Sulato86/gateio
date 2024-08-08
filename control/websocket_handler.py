@@ -60,7 +60,8 @@ class WebSocketHandler(QObject):
                 currency_pair,
                 float(result.get('change_percentage', 0.0)),
                 float(result.get('last', 0.0)),
-                float(result.get('base_volume', 0.0))
+                float(result.get('base_volume', 0.0)),
+                float(result.get('quote_volume', 0.0))
             ]
 
             for i, entry in enumerate(self.market_data):

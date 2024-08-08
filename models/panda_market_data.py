@@ -8,7 +8,7 @@ logger = configure_logging('panda_market_data', 'logs/panda_market_data.log')
 class PandaMarketData(QAbstractTableModel):
     def __init__(self, data):
         super().__init__()
-        self._headers = ["TIME", "PAIR", "24%", "PRICE", "VOLUME"]
+        self._headers = ["TIME", "PAIR", "24%", "PRICE", "BVOLUME", "QVOLUME"]
         self._data = pd.DataFrame(data, columns=self._headers) if data else pd.DataFrame(columns=self._headers)
         self._sort_column = -1
         self._sort_order = Qt.AscendingOrder
@@ -30,7 +30,7 @@ class PandaMarketData(QAbstractTableModel):
             if role == Qt.DisplayRole:
                 if index.column() == 3:
                     return self.format_price(value)
-                if index.column() in [2, 4]:
+                if index.column() in [2, 4, 5]:
                     return self.format_percentage_or_volume(value)
                 return value
 
@@ -101,7 +101,7 @@ class PandaMarketData(QAbstractTableModel):
             self._sort_column = column
             self._sort_order = order
             
-            if col_name in ["24%", "PRICE", "VOLUME"]:
+            if col_name in ["24%", "PRICE", "BVOLUME", "QVOLUME"]:
                 self._data[col_name] = pd.to_numeric(self._data[col_name], errors='coerce')
             
             self._data.sort_values(by=col_name, ascending=ascending, inplace=True)
