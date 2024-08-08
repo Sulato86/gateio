@@ -10,7 +10,7 @@ class PandaMarketData(QAbstractTableModel):
         super().__init__()
         self._headers = ["TIME", "PAIR", "24%", "PRICE", "VOLUME"]
         self._data = pd.DataFrame(data, columns=self._headers) if data else pd.DataFrame(columns=self._headers)
-        self._sort_column = -1  # Default sorting by "PAIR"
+        self._sort_column = -1
         self._sort_order = Qt.AscendingOrder
         self.sort(self._sort_column, self._sort_order)
 
@@ -28,9 +28,9 @@ class PandaMarketData(QAbstractTableModel):
             value = self._data.iat[index.row(), index.column()]
 
             if role == Qt.DisplayRole:
-                if index.column() == 3:  # PRICE column
+                if index.column() == 3:
                     return self.format_price(value)
-                if index.column() in [2, 4]:  # 24% and VOLUME columns
+                if index.column() in [2, 4]:
                     return self.format_percentage_or_volume(value)
                 return value
 
@@ -43,7 +43,6 @@ class PandaMarketData(QAbstractTableModel):
         except IndexError:
             return None
         except Exception as e:
-            logger.error(f"Error in data method: {e}")
             return None
 
         return None
@@ -59,21 +58,13 @@ class PandaMarketData(QAbstractTableModel):
 
     def update_data(self, new_data):
         try:
-            logger.info(f"Updating data with {len(new_data)} rows")
             new_df = pd.DataFrame(new_data, columns=self._headers)
             if not new_df.equals(self._data):
-                logger.info(f"New data received with {len(new_df)} rows and {len(new_df.columns)} columns")
-                logger.info(f"Data before update: \n{self._data.head()}")
                 self.beginResetModel()
                 self._data = new_df
-                logger.info(f"Data after update: \n{self._data.head()}")
-                logger.info(f"Dtype of columns before conversion:\n{self._data.dtypes}")
-                # Terapkan sorting jika ada
                 if self._sort_column >= 0:
                     self.sort(self._sort_column, self._sort_order)
-                logger.info(f"Dtype of columns after conversion:\n{self._data.dtypes}")
                 self.endResetModel()
-                logger.info(f"Data after model reset: \n{self._data.head()}")
         except Exception as e:
             logger.error(f"Error updating data: {e}")
 
@@ -88,7 +79,6 @@ class PandaMarketData(QAbstractTableModel):
             self._data = pd.DataFrame.from_dict(existing_data, orient='index').reset_index()
 
             self.beginResetModel()
-            # Terapkan sorting jika ada
             if self._sort_column >= 0:
                 self.sort(self._sort_column, self._sort_order)
             self.endResetModel()
@@ -108,29 +98,13 @@ class PandaMarketData(QAbstractTableModel):
             col_name = self._headers[column]
             ascending = (order == Qt.AscendingOrder)
             
-            # Simpan status sorting
             self._sort_column = column
             self._sort_order = order
             
-            # Logging sebelum sorting
-            logger.info(f"Data before sorting by {col_name}: \n{self._data}")
-            
-            # Pastikan kolom diubah menjadi numerik jika diperlukan
             if col_name in ["24%", "PRICE", "VOLUME"]:
-                # Log data sebelum konversi
-                logger.info(f"Data in {col_name} before conversion: \n{self._data[col_name].head()}")
-                
                 self._data[col_name] = pd.to_numeric(self._data[col_name], errors='coerce')
-                
-                # Log data setelah konversi
-                logger.info(f"Data in {col_name} after conversion: \n{self._data[col_name].head()}")
             
-            # Lakukan sorting
             self._data.sort_values(by=col_name, ascending=ascending, inplace=True)
-            
-            # Logging setelah sorting
-            logger.info(f"Data after sorting by {col_name}: \n{self._data}")
-
             self.beginResetModel()
             self.endResetModel()
         except Exception as e:
@@ -138,7 +112,7 @@ class PandaMarketData(QAbstractTableModel):
 
     def format_price(self, value):
         try:
-            return f"{float(value)}"  # Convert to integer to remove decimal digits
+            return f"{float(value)}"
         except ValueError:
             return value
 

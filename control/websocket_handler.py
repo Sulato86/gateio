@@ -53,9 +53,7 @@ class WebSocketHandler(QObject):
             timestamp = data.get('time')
             if not timestamp:
                 return
-
-            # Logging data yang diterima
-            logger.info(f"Received data: {result}")
+            logger.info(f"received data: {result}")
 
             market_entry = [
                 time.strftime('%d-%m-%Y %H:%M:%S', time.localtime(timestamp)),
@@ -76,11 +74,11 @@ class WebSocketHandler(QObject):
             if self.on_data_received:
                 self.on_data_received(self.market_data)
         except KeyError as e:
-            logger.error(f"KeyError processing message: {e}")
+            pass
         except ValueError as e:
-            logger.error(f"ValueError processing message: {e} with data {result}")
+            pass
         except Exception as e:
-            logger.error(f"Error processing message: {e} with data {result}")
+            pass
 
     async def add_pair(self, pair):
         if not pair:
