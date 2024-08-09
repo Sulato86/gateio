@@ -15,19 +15,16 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         super(MainWindow, self).__init__()
         self.setupUi(self)
         self.load_balances()
-
         self.market_data_model = PandaMarketData(self, [])
         self.market_data_model.data_changed.connect(self.on_data_changed)
-
         self.tableView_marketdata.setModel(self.market_data_model)
         self.tableView_marketdata.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-        self.tableView_marketdata.setSelectionBehavior(QAbstractItemView.SelectRows)  # Pilih seluruh baris
+        self.tableView_marketdata.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.tableView_marketdata.setSortingEnabled(True)
         self.tableView_marketdata.horizontalHeader().sectionClicked.connect(self.sort_market_data)
         self.tableView_marketdata.setSelectionMode(QAbstractItemView.MultiSelection)
         self.tableView_marketdata.setContextMenuPolicy(Qt.CustomContextMenu)
         self.tableView_marketdata.customContextMenuRequested.connect(self.show_context_menu)
-
         self.lineEdit_addpair.returnPressed.connect(self.add_pair)
         self.pushButton_exportmarketdata.clicked.connect(self.export_market_data)
 
@@ -43,22 +40,17 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.show_error_message('Error', f'Gagal memuat saldo akun: {e}')
 
     def on_data_changed(self):
-        """
-        Perbarui tampilan tableView_marketdata ketika data berubah.
-        """
-        logger.info("Memperbarui tampilan tabel...")  # Log untuk memastikan pemanggilan
-        self.tableView_marketdata.model().layoutChanged.emit()  # Emit sinyal untuk memperbarui tata letak
-        self.tableView_marketdata.viewport().update()  # Memperbarui tampilan
+        self.tableView_marketdata.model().layoutChanged.emit()
+        self.tableView_marketdata.viewport().update()
 
     def add_pair(self):
         pair = self.lineEdit_addpair.text().upper().strip()
         if pair:
             is_added = self.market_data_model.add_pair(pair)
             if is_added:
-                logger.info(f"PAIR {pair} berhasil ditambahkan dan tabel akan diperbarui.")
                 self.show_info_message('PAIR Ditambahkan', f'PAIR {pair} berhasil ditambahkan.')
                 self.lineEdit_addpair.clear()
-                self.on_data_changed()  # Perbarui tampilan tabel
+                self.on_data_changed()
             else:
                 self.show_warning_message('Input Error', f'PAIR {pair} tidak valid atau sudah ada.')
         else:
@@ -83,9 +75,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if not selected_indexes:
             self.show_warning_message('Delete Error', 'Tidak ada PAIR yang dipilih untuk dihapus.')
             return
-
         selected_rows = [index.row() for index in selected_indexes]
-
         if selected_rows:
             self.market_data_model.delete_selected_rows(selected_rows)
             self.show_info_message('PAIR Dihapus', 'PAIR yang dipilih berhasil dihapus.')

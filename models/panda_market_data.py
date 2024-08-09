@@ -51,7 +51,6 @@ class PandaMarketData(QAbstractTableModel):
 
     def update_data(self, new_data):
         try:
-            logger.info(f"Menerima data baru: {new_data}")
             for new_row in new_data:
                 existing_index = self._data.index[self._data["PAIR"] == new_row[1]].tolist()
                 if existing_index:
@@ -62,18 +61,16 @@ class PandaMarketData(QAbstractTableModel):
                     new_row_df = pd.DataFrame([new_row], columns=self._headers)
                     if not new_row_df.isna().all().all():
                         self._data = pd.concat([self._data, new_row_df], ignore_index=True)
-                        self._data.drop_duplicates(subset=["PAIR"], keep="last", inplace=True)  # Hindari duplikasi
+                        self._data.drop_duplicates(subset=["PAIR"], keep="last", inplace=True)
                         self.layoutChanged.emit()
             self.data_changed.emit()
         except Exception as e:
-            logger.error(f"Gagal memperbarui data: {e}")
-
+            pass
 
     def add_pair(self, pair):
         if not pair:
             return False
         try:
-            logger.info(f"Menambahkan pasangan baru: {pair}")
             future = asyncio.run_coroutine_threadsafe(
                 self.websocket_handler.add_pair(pair),
                 self.websocket_handler.loop
@@ -81,7 +78,6 @@ class PandaMarketData(QAbstractTableModel):
             is_added = future.result()
             return is_added
         except Exception as e:
-            logger.error(f"Gagal menambah pasangan {pair}: {e}")
             return False
 
     def delete_pair(self, pair):
@@ -94,25 +90,21 @@ class PandaMarketData(QAbstractTableModel):
                 self._data.drop(row, inplace=True)
                 self.endRemoveRows()
         except Exception as e:
-            logger.error(f"Gagal menghapus pasangan {pair}: {e}")
+            pass
 
     def delete_selected_rows(self, selected_rows):
         try:
-            selected_rows.sort(reverse=True)  # Urutkan dari yang terbesar ke terkecil untuk menghindari masalah indeks
-
+            selected_rows.sort(reverse=True)
             for row in selected_rows:
                 pair = self._data.iloc[row]["PAIR"]
-                self.websocket_handler.remove_pair(pair)  # Pastikan Anda juga menghapus pasangan dari handler
-
+                self.websocket_handler.remove_pair(pair)
                 self.beginRemoveRows(QModelIndex(), row, row)
                 self._data.drop(index=row, inplace=True)
                 self.endRemoveRows()
-
-            self._data.reset_index(drop=True, inplace=True)  # Reset indeks setelah penghapusan
-            self.layoutChanged.emit()  # Emit sinyal untuk memberitahu UI
-            logger.info("Baris yang dipilih berhasil dihapus.")
+            self._data.reset_index(drop=True, inplace=True)
+            self.layoutChanged.emit()
         except Exception as e:
-            logger.error(f"Gagal menghapus baris yang dipilih: {e}")
+            pass
 
     def sort(self, column: int, order: Qt.SortOrder):
         try:
@@ -123,10 +115,10 @@ class PandaMarketData(QAbstractTableModel):
             if col_name in ["24%", "PRICE", "BVOLUME", "QVOLUME"]:
                 self._data[col_name] = pd.to_numeric(self._data[col_name], errors='coerce')
             self._data.sort_values(by=col_name, ascending=ascending, inplace=True)
-            self._data.reset_index(drop=True, inplace=True)  # Reset indeks setelah sorting
-            self.layoutChanged.emit()  # Emit sinyal perubahan tata letak untuk memperbarui tampilan
+            self._data.reset_index(drop=True, inplace=True)
+            self.layoutChanged.emit()
         except Exception as e:
-            logger.error(f"Gagal mengurutkan data: {e}")
+            pass
 
     def format_price(self, value):
         try:
