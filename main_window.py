@@ -1,5 +1,5 @@
 import sys
-from PyQt5.QtWidgets import QApplication, QMainWindow, QHeaderView, QMessageBox, QAbstractItemView
+from PyQt5.QtWidgets import QApplication, QMainWindow, QHeaderView, QMessageBox, QAbstractItemView, QMenu
 from PyQt5.QtCore import Qt
 from ui.ui_main_window import Ui_MainWindow
 from utils.logging_config import configure_logging
@@ -16,19 +16,20 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.setupUi(self)
         self.load_balances()
 
-        self.market_data_model = PandaMarketData([])
+        self.market_data_model = PandaMarketData(self, [])
         self.market_data_model.data_changed.connect(self.on_data_changed)
 
         self.tableView_marketdata.setModel(self.market_data_model)
         self.tableView_marketdata.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.tableView_marketdata.setSelectionBehavior(QAbstractItemView.SelectRows)  # Pilih seluruh baris
         self.tableView_marketdata.setSortingEnabled(True)
         self.tableView_marketdata.horizontalHeader().sectionClicked.connect(self.sort_market_data)
         self.tableView_marketdata.setSelectionMode(QAbstractItemView.MultiSelection)
+        self.tableView_marketdata.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.tableView_marketdata.customContextMenuRequested.connect(self.show_context_menu)
 
         self.lineEdit_addpair.returnPressed.connect(self.add_pair)
         self.pushButton_exportmarketdata.clicked.connect(self.export_market_data)
-
-        self.tableView_marketdata.setContextMenuPolicy(Qt.CustomContextMenu)
 
     def load_balances(self):
         try:
@@ -42,15 +43,22 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.show_error_message('Error', f'Gagal memuat saldo akun: {e}')
 
     def on_data_changed(self):
-        self.tableView_marketdata.viewport().update()
+        """
+        Perbarui tampilan tableView_marketdata ketika data berubah.
+        """
+        logger.info("Memperbarui tampilan tabel...")  # Log untuk memastikan pemanggilan
+        self.tableView_marketdata.model().layoutChanged.emit()  # Emit sinyal untuk memperbarui tata letak
+        self.tableView_marketdata.viewport().update()  # Memperbarui tampilan
 
     def add_pair(self):
         pair = self.lineEdit_addpair.text().upper().strip()
         if pair:
             is_added = self.market_data_model.add_pair(pair)
             if is_added:
+                logger.info(f"PAIR {pair} berhasil ditambahkan dan tabel akan diperbarui.")
                 self.show_info_message('PAIR Ditambahkan', f'PAIR {pair} berhasil ditambahkan.')
                 self.lineEdit_addpair.clear()
+                self.on_data_changed()  # Perbarui tampilan tabel
             else:
                 self.show_warning_message('Input Error', f'PAIR {pair} tidak valid atau sudah ada.')
         else:
@@ -69,6 +77,24 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.show_info_message('Ekspor Berhasil', 'Data pasar berhasil diekspor.')
         except Exception as e:
             self.show_error_message('Error', f'Gagal mengekspor data: {e}')
+
+    def delete_selected_pairs(self):
+        selected_indexes = self.tableView_marketdata.selectionModel().selectedRows()
+        if not selected_indexes:
+            self.show_warning_message('Delete Error', 'Tidak ada PAIR yang dipilih untuk dihapus.')
+            return
+
+        selected_rows = [index.row() for index in selected_indexes]
+
+        if selected_rows:
+            self.market_data_model.delete_selected_rows(selected_rows)
+            self.show_info_message('PAIR Dihapus', 'PAIR yang dipilih berhasil dihapus.')
+
+    def show_context_menu(self, pos):
+        menu = QMenu(self)
+        delete_action = menu.addAction("Hapus PAIR")
+        delete_action.triggered.connect(self.delete_selected_pairs)
+        menu.exec_(self.tableView_marketdata.viewport().mapToGlobal(pos))
 
     def show_error_message(self, title: str, message: str):
         QMessageBox.critical(self, title, message)
