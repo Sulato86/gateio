@@ -1,18 +1,24 @@
 import pandas as pd
-from PyQt5.QtCore import QAbstractTableModel, Qt
+import asyncio
+from PyQt5.QtCore import QAbstractTableModel, Qt, pyqtSignal, QModelIndex
 from PyQt5.QtGui import QColor, QBrush, QFont
 from utils.logging_config import configure_logging
+from control.websocket_handler import WebSocketHandler
 
 logger = configure_logging('panda_market_data', 'logs/panda_market_data.log')
 
+
 class PandaMarketData(QAbstractTableModel):
+    data_changed = pyqtSignal()
+
     def __init__(self, data):
         super().__init__()
         self._headers = ["TIME", "PAIR", "24%", "PRICE", "BVOLUME", "QVOLUME"]
         self._data = pd.DataFrame(data, columns=self._headers) if data else pd.DataFrame(columns=self._headers)
         self._sort_column = -1
         self._sort_order = Qt.AscendingOrder
-        self.sort(self._sort_column, self._sort_order)
+        self.websocket_handler = WebSocketHandler(self)
+        self.websocket_handler.start()
 
     def rowCount(self, index=None) -> int:
         return self._data.shape[0]
@@ -23,28 +29,20 @@ class PandaMarketData(QAbstractTableModel):
     def data(self, index, role=Qt.DisplayRole):
         if not index.isValid():
             return None
-
         try:
             value = self._data.iat[index.row(), index.column()]
-
             if role == Qt.DisplayRole:
                 if index.column() == 3:
                     return self.format_price(value)
                 if index.column() in [2, 4, 5]:
                     return self.format_percentage_or_volume(value)
                 return value
-
             if role == Qt.BackgroundRole and index.column() == 2:
                 return self.get_background_brush(value)
-
             if role == Qt.ForegroundRole and index.column() == 2:
                 return self.get_foreground_brush(value)
-
-        except IndexError:
+        except (IndexError, ValueError):
             return None
-        except Exception as e:
-            return None
-
         return None
 
     def headerData(self, section, orientation, role):
@@ -62,53 +60,47 @@ class PandaMarketData(QAbstractTableModel):
             if not new_df.equals(self._data):
                 self.beginResetModel()
                 self._data = new_df
-                if self._sort_column >= 0:
-                    self.sort(self._sort_column, self._sort_order)
                 self.endResetModel()
-        except Exception as e:
-            logger.error(f"Error updating data: {e}")
+                self.dataChanged.emit(self.index(0, 0), self.index(self.rowCount()-1, self.columnCount()-1))
+                self.data_changed.emit()
+        except Exception:
+            pass
 
-    def import_data(self, headers, new_data):
+    def add_pair(self, pair):
+        if not pair:
+            return False
         try:
-            existing_data = self._data.set_index("PAIR").to_dict('index')
-
-            for row in new_data:
-                pair = row[1]
-                existing_data[pair] = dict(zip(headers, row))
-
-            self._data = pd.DataFrame.from_dict(existing_data, orient='index').reset_index()
-
-            self.beginResetModel()
-            if self._sort_column >= 0:
-                self.sort(self._sort_column, self._sort_order)
-            self.endResetModel()
-        except Exception as e:
-            logger.error(f"Error importing data: {e}")
+            future = asyncio.run_coroutine_threadsafe(
+                self.websocket_handler.add_pair(pair),
+                self.websocket_handler.loop
+            )
+            is_added = future.result()
+            return is_added
+        except Exception:
+            return False
 
     def get_data(self, row: int, column: int):
-        if row < 0 or row >= self._data.shape[0] or column < 0 or column >= self._data.shape[1]:
+        try:
+            if row < 0 or row >= self._data.shape[0] or column < 0 or column >= self._data.shape[1]:
+                return None
+            return self._data.iat[row, column]
+        except Exception:
             return None
-        return self._data.iat[row, column]
 
     def sort(self, column: int, order: Qt.SortOrder):
         try:
             if column < 0 or column >= len(self._headers):
                 raise ValueError(f"Invalid column index: {column}")
-            
             col_name = self._headers[column]
             ascending = (order == Qt.AscendingOrder)
-            
             self._sort_column = column
             self._sort_order = order
-            
             if col_name in ["24%", "PRICE", "BVOLUME", "QVOLUME"]:
                 self._data[col_name] = pd.to_numeric(self._data[col_name], errors='coerce')
-            
             self._data.sort_values(by=col_name, ascending=ascending, inplace=True)
-            self.beginResetModel()
-            self.endResetModel()
-        except Exception as e:
-            logger.error(f"Error sorting data: {e}")
+            self.dataChanged.emit(self.index(0, 0), self.index(self.rowCount()-1, self.columnCount()-1))
+        except Exception:
+            pass
 
     def format_price(self, value):
         try:

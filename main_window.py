@@ -1,14 +1,12 @@
 import sys
-import asyncio
-from PyQt5.QtWidgets import QApplication, QMainWindow, QHeaderView, QMessageBox
+from PyQt5.QtWidgets import QApplication, QMainWindow, QHeaderView, QMessageBox, QAbstractItemView
 from PyQt5.QtCore import Qt
 from ui.ui_main_window import Ui_MainWindow
 from utils.logging_config import configure_logging
 from loaders.balances_loader import load_balances
 from models.balances_table_model import BalancesTableModel
-from control.websocket_handler import WebSocketHandler
 from models.panda_market_data import PandaMarketData
-from control.csv_handler import export_csv, import_csv
+from control.csv_handler import export_csv
 
 logger = configure_logging('main_window', 'logs/main_window.log')
 
@@ -19,70 +17,44 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.load_balances()
 
         self.market_data_model = PandaMarketData([])
+        self.market_data_model.data_changed.connect(self.on_data_changed)
+
         self.tableView_marketdata.setModel(self.market_data_model)
         self.tableView_marketdata.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.tableView_marketdata.setSortingEnabled(True)
         self.tableView_marketdata.horizontalHeader().sectionClicked.connect(self.sort_market_data)
-
-        self.ws_handler = WebSocketHandler(self.on_data_received)
-        self.ws_handler.start()
+        self.tableView_marketdata.setSelectionMode(QAbstractItemView.MultiSelection)
 
         self.lineEdit_addpair.returnPressed.connect(self.add_pair)
-        self.pushButton_exportmarketdata.clicked.connect(lambda: export_csv(self.tableView_marketdata))
-        self.pushButton_importmarketdata.clicked.connect(self.import_market_data)
+        self.pushButton_exportmarketdata.clicked.connect(self.export_market_data)
+
+        self.tableView_marketdata.setContextMenuPolicy(Qt.CustomContextMenu)
 
     def load_balances(self):
         try:
             table_data = load_balances()
+            if table_data is None:
+                raise ValueError("Data saldo kosong atau tidak valid.")
             self.model = BalancesTableModel(table_data)
             self.tableView_accountdata.setModel(self.model)
             self.tableView_accountdata.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         except Exception as e:
             self.show_error_message('Error', f'Gagal memuat saldo akun: {e}')
 
-    def on_data_received(self, market_data):
-        try:
-            self.market_data_model.update_data(market_data)
-            self.log_table_data()
-        except Exception as e:
-            self.show_error_message('Error', f'Terjadi kesalahan saat memperbarui data market: {e}')
-
-    def log_table_data(self):
-        row_count = self.market_data_model.rowCount(None)
-        col_count = self.market_data_model.columnCount(None)
-        for row in range(row_count):
-            row_data = [self.market_data_model.get_data(row, col) for col in range(col_count)]
+    def on_data_changed(self):
+        self.tableView_marketdata.viewport().update()
 
     def add_pair(self):
-        pair = self.lineEdit_addpair.text().upper()
+        pair = self.lineEdit_addpair.text().upper().strip()
         if pair:
-            try:
-                future = asyncio.run_coroutine_threadsafe(self.ws_handler.add_pair(pair), self.ws_handler.loop)
-                is_added = future.result()
-                if is_added:
-                    self.show_info_message('PAIR Ditambahkan', f'PAIR {pair} berhasil ditambahkan.')
-                    self.lineEdit_addpair.clear()
-                    self.on_data_received(self.ws_handler.market_data)
-                else:
-                    self.show_warning_message('Input Error', f'PAIR {pair} tidak valid atau sudah ada.')
-            except Exception as e:
-                self.show_error_message('Error', f'Gagal menambahkan PAIR: {e}')
+            is_added = self.market_data_model.add_pair(pair)
+            if is_added:
+                self.show_info_message('PAIR Ditambahkan', f'PAIR {pair} berhasil ditambahkan.')
+                self.lineEdit_addpair.clear()
+            else:
+                self.show_warning_message('Input Error', f'PAIR {pair} tidak valid atau sudah ada.')
         else:
             self.show_warning_message('Input Error', 'Masukkan PAIR yang valid.')
-
-    def import_market_data(self):
-        headers, data = import_csv(self.tableView_marketdata)
-        if headers and data:
-            try:
-                self.market_data_model.import_data(headers, data)
-                pairs = [row[1] for row in data]
-                asyncio.run_coroutine_threadsafe(self.ws_handler.add_pairs_from_csv(pairs), self.ws_handler.loop)
-                self.on_data_received(self.market_data_model._data.values.tolist())
-                self.show_info_message('Impor Sukses', 'Data berhasil diimpor dari file CSV.')
-            except Exception as e:
-                self.show_error_message('Error', f'Terjadi kesalahan saat mengimpor data: {e}')
-        else:
-            self.show_warning_message('Tidak ada data yang diimpor atau terjadi kesalahan saat mengimpor.')
 
     def sort_market_data(self, column):
         try:
@@ -90,6 +62,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.market_data_model.sort(column, order)
         except Exception as e:
             self.show_error_message('Error', f'Terjadi kesalahan saat mengurutkan data: {e}')
+
+    def export_market_data(self):
+        try:
+            export_csv(self.tableView_marketdata)
+            self.show_info_message('Ekspor Berhasil', 'Data pasar berhasil diekspor.')
+        except Exception as e:
+            self.show_error_message('Error', f'Gagal mengekspor data: {e}')
 
     def show_error_message(self, title: str, message: str):
         QMessageBox.critical(self, title, message)
@@ -99,6 +78,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def show_info_message(self, title: str, message: str):
         QMessageBox.information(self, title, message)
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
