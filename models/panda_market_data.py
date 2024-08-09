@@ -1,6 +1,6 @@
 import pandas as pd
 import asyncio
-from PyQt5.QtCore import QAbstractTableModel, Qt, pyqtSignal, QModelIndex
+from PyQt5.QtCore import QAbstractTableModel, Qt, pyqtSignal
 from PyQt5.QtGui import QColor, QBrush, QFont
 from utils.logging_config import configure_logging
 from control.websocket_handler import WebSocketHandler
@@ -37,10 +37,8 @@ class PandaMarketData(QAbstractTableModel):
                 if index.column() in [2, 4, 5]:
                     return self.format_percentage_or_volume(value)
                 return value
-            if role == Qt.BackgroundRole and index.column() == 2:
-                return self.get_background_brush(value)
-            if role == Qt.ForegroundRole and index.column() == 2:
-                return self.get_foreground_brush(value)
+            if role in [Qt.BackgroundRole, Qt.ForegroundRole] and index.column() == 2:
+                return self.get_brush(value, role)
         except (IndexError, ValueError):
             return None
         return None
@@ -114,20 +112,16 @@ class PandaMarketData(QAbstractTableModel):
         except ValueError:
             return value
 
-    def get_background_brush(self, value):
+    def get_brush(self, value, role):
         try:
             change_percentage = float(value)
-            if change_percentage < 0:
-                return QBrush(QColor('red'))
-            elif change_percentage > 0:
-                return QBrush(QColor('green'))
-        except ValueError:
-            return None
-
-    def get_foreground_brush(self, value):
-        try:
-            change_percentage = float(value)
-            if change_percentage < 0 or change_percentage > 0:
-                return QBrush(QColor('white'))
+            if role == Qt.BackgroundRole:
+                if change_percentage < 0:
+                    return QBrush(QColor('red'))
+                elif change_percentage > 0:
+                    return QBrush(QColor('green'))
+            elif role == Qt.ForegroundRole:
+                if change_percentage < 0 or change_percentage > 0:
+                    return QBrush(QColor('white'))
         except ValueError:
             return None
