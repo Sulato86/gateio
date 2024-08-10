@@ -127,7 +127,7 @@
       <x>10</x>
       <y>480</y>
       <width>441</width>
-      <height>191</height>
+      <height>211</height>
      </rect>
     </property>
     <property name="font">
@@ -136,6 +136,9 @@
       <weight>75</weight>
       <bold>true</bold>
      </font>
+    </property>
+    <property name="currentIndex">
+     <number>2</number>
     </property>
     <widget class="QWidget" name="tab_saldo">
      <attribute name="title">
@@ -147,7 +150,7 @@
         <x>-2</x>
         <y>-4</y>
         <width>441</width>
-        <height>171</height>
+        <height>191</height>
        </rect>
       </property>
       <property name="sizePolicy">
@@ -165,10 +168,35 @@
       </property>
      </widget>
     </widget>
-    <widget class="QWidget" name="tab_2">
+    <widget class="QWidget" name="tab_order">
      <attribute name="title">
-      <string>Tab 2</string>
+      <string>Order</string>
      </attribute>
+     <widget class="QTableView" name="tableView_order">
+      <property name="geometry">
+       <rect>
+        <x>-5</x>
+        <y>1</y>
+        <width>441</width>
+        <height>181</height>
+       </rect>
+      </property>
+     </widget>
+    </widget>
+    <widget class="QWidget" name="tab_history">
+     <attribute name="title">
+      <string>History</string>
+     </attribute>
+     <widget class="QTableView" name="tableView_history">
+      <property name="geometry">
+       <rect>
+        <x>-5</x>
+        <y>1</y>
+        <width>441</width>
+        <height>181</height>
+       </rect>
+      </property>
+     </widget>
     </widget>
    </widget>
   </widget>

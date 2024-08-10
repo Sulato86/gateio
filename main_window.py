@@ -3,8 +3,8 @@ from PyQt5.QtWidgets import QApplication, QMainWindow, QHeaderView, QMessageBox,
 from PyQt5.QtCore import Qt
 from ui.ui_main_window import Ui_MainWindow
 from utils.logging_config import configure_logging
-from control.api_handler import ApiHandler  # Mengimpor kelas yang digabungkan dari api_handler.py
-from models.panda_market_data import PandaMarketData  # Tetap menggunakan model ini untuk data pasar
+from models.panda_account_data import PandaAccountData
+from models.panda_market_data import PandaMarketData
 
 logger = configure_logging('main_window', 'logs/main_window.log')
 
@@ -25,23 +25,25 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.tableView_marketdata.customContextMenuRequested.connect(self.show_context_menu)
         self.lineEdit_addpair.returnPressed.connect(self.add_pair)
         self.pushButton_exportmarketdata.clicked.connect(self.export_market_data)
-        
-        # Menambahkan tombol untuk impor market data dari CSV
         self.pushButton_importmarketdata.clicked.connect(self.import_market_data)
 
     def load_balances(self):
         try:
-            # Menginisialisasi ApiHandler dan menggunakan data yang dihasilkan oleh load_balances
-            self.model = ApiHandler()
-            table_data = self.model.load_balances()
-            if table_data is None:
-                raise ValueError("Data saldo kosong atau tidak valid.")
-            self.model._data = table_data
-            self.tableView_accountdata.setModel(self.model)
+            self.account_data_model = PandaAccountData()
+            self.tableView_accountdata.setModel(self.account_data_model)
+            self.tableView_accountdata.setSortingEnabled(True)
             self.tableView_accountdata.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+            self.tableView_accountdata.horizontalHeader().sectionClicked.connect(self.sort_account_data)
         except Exception as e:
             self.show_error_message('Error', f'Gagal memuat saldo akun: {e}')
             logger.error(f'Gagal memuat saldo akun: {e}')
+
+    def sort_account_data(self, column):
+        """
+        Mengatur sorting untuk data akun ketika header kolom di tabel data akun diklik.
+        """
+        order = self.tableView_accountdata.horizontalHeader().sortIndicatorOrder()
+        self.account_data_model.sort_data(column, order)
 
     def on_data_changed(self):
         logger.info("Pembaruan UI dimulai setelah perubahan data.")
