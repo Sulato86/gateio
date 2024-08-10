@@ -24,8 +24,7 @@ class ApiHandler(QAbstractTableModel):
                 asset = balance.currency
                 available = float(balance.available)
                 locked = float(balance.locked)
-                if available >= 1 or locked >= 1:
-                    table_data.append([asset, available, locked])
+                table_data.append([asset, available, locked])
             if not table_data:
                 table_data = [["-", 0, 0]]
             return table_data
@@ -39,7 +38,9 @@ class ApiHandler(QAbstractTableModel):
         if role == Qt.DisplayRole:
             value = self._data[index.row()][index.column()]
             if index.column() in [1, 2]:
-                value = round(value, 2)
+                value = round(value, 12)  # Membulatkan nilai ke 12 digit desimal
+                if value < 0:
+                    return "-"  # Menyembunyikan nilai kurang dari 0
             return value
 
     def rowCount(self, index):
