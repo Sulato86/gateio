@@ -1,13 +1,13 @@
 from api.api_gateio import GateIOAPI, api_client
-from utils.logging_config import configure_logging
 from typing import List, Union
+from utils.logging_config import configure_logging
 
 logger = configure_logging('api_handler', 'logs/api_handler.log')
 api = GateIOAPI(api_client)
 
 class ApiHandler:
     def __init__(self):
-        self._data = self.load_balances()
+        pass
 
     def load_balances(self) -> List[Union[str, float]]:
         try:
@@ -27,4 +27,4 @@ class ApiHandler:
             return [["-", 0, 0]]
 
     def get_balances_data(self) -> List[Union[str, float]]:
-        return self._data
+        return self.load_balances()
