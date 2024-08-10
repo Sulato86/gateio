@@ -1,12 +1,11 @@
 import sys
-from PyQt5.QtWidgets import QApplication, QMainWindow, QHeaderView, QMessageBox, QAbstractItemView, QMenu
+from PyQt5.QtWidgets import QApplication, QMainWindow, QHeaderView, QMessageBox, QAbstractItemView, QMenu, QFileDialog
 from PyQt5.QtCore import Qt
 from ui.ui_main_window import Ui_MainWindow
 from utils.logging_config import configure_logging
 from loaders.balances_loader import load_balances
 from models.balances_table_model import BalancesTableModel
 from models.panda_market_data import PandaMarketData
-from control.csv_handler import export_csv
 
 logger = configure_logging('main_window', 'logs/main_window.log')
 
@@ -27,6 +26,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.tableView_marketdata.customContextMenuRequested.connect(self.show_context_menu)
         self.lineEdit_addpair.returnPressed.connect(self.add_pair)
         self.pushButton_exportmarketdata.clicked.connect(self.export_market_data)
+        
+        # Menambahkan tombol untuk impor market data dari CSV
+        self.pushButton_importmarketdata.clicked.connect(self.import_market_data)
 
     def load_balances(self):
         try:
@@ -38,21 +40,32 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.tableView_accountdata.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         except Exception as e:
             self.show_error_message('Error', f'Gagal memuat saldo akun: {e}')
+            logger.error(f'Gagal memuat saldo akun: {e}')
 
     def on_data_changed(self):
-        self.tableView_marketdata.model().layoutChanged.emit()
-        self.tableView_marketdata.viewport().update()
+        logger.info("Pembaruan UI dimulai setelah perubahan data.")
+        try:
+            self.tableView_marketdata.model().layoutChanged.emit()
+            self.tableView_marketdata.viewport().update()
+            logger.info("UI berhasil diperbarui.")
+        except Exception as e:
+            logger.error(f"Error saat memperbarui UI: {e}")
+            self.show_error_message("Error", f"Error saat memperbarui UI: {e}")
 
     def add_pair(self):
         pair = self.lineEdit_addpair.text().upper().strip()
         if pair:
-            is_added = self.market_data_model.add_pair(pair)
-            if is_added:
-                self.show_info_message('PAIR Ditambahkan', f'PAIR {pair} berhasil ditambahkan.')
-                self.lineEdit_addpair.clear()
-                self.on_data_changed()
-            else:
-                self.show_warning_message('Input Error', f'PAIR {pair} tidak valid atau sudah ada.')
+            try:
+                is_added = self.market_data_model.add_pair(pair)
+                if is_added:
+                    self.show_info_message('PAIR Ditambahkan', f'PAIR {pair} berhasil ditambahkan.')
+                    self.lineEdit_addpair.clear()
+                    self.on_data_changed()
+                else:
+                    self.show_warning_message('Input Error', f'PAIR {pair} tidak valid atau sudah ada.')
+            except Exception as e:
+                logger.error(f'Gagal menambahkan pair: {e}')
+                self.show_error_message('Error', f'Gagal menambahkan pair: {e}')
         else:
             self.show_warning_message('Input Error', 'Masukkan PAIR yang valid.')
 
@@ -61,14 +74,33 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             order = self.tableView_marketdata.horizontalHeader().sortIndicatorOrder()
             self.market_data_model.sort(column, order)
         except Exception as e:
+            logger.error(f'Terjadi kesalahan saat mengurutkan data: {e}')
             self.show_error_message('Error', f'Terjadi kesalahan saat mengurutkan data: {e}')
 
     def export_market_data(self):
-        try:
-            export_csv(self.tableView_marketdata)
-            self.show_info_message('Ekspor Berhasil', 'Data pasar berhasil diekspor.')
-        except Exception as e:
-            self.show_error_message('Error', f'Gagal mengekspor data: {e}')
+        options = QFileDialog.Options()
+        file_name, _ = QFileDialog.getSaveFileName(self, "Save CSV File", "", "CSV Files (*.csv);;All Files (*)", options=options)
+        if file_name:
+            try:
+                self.market_data_model.export_market_data(file_name)
+                self.show_info_message('Ekspor Berhasil', 'Data pasar berhasil diekspor.')
+            except Exception as e:
+                logger.error(f'Gagal mengekspor data: {e}')
+                self.show_error_message('Error', f'Gagal mengekspor data: {e}')
+
+    def import_market_data(self):
+        options = QFileDialog.Options()
+        file_name, _ = QFileDialog.getOpenFileName(self, "Import CSV File", "", "CSV Files (*.csv);;All Files (*)", options=options)
+        if file_name:
+            try:
+                logger.info(f'Mengimpor data dari file: {file_name}')
+                self.market_data_model.import_csv(file_name)
+                self.on_data_changed()
+                logger.info('Impor data berhasil.')
+                self.show_info_message('Impor Berhasil', 'Data pasar berhasil diimpor dari CSV.')
+            except Exception as e:
+                logger.error(f'Gagal mengimpor data dari file: {file_name}, error: {e}')
+                self.show_error_message('Error', f'Gagal mengimpor data: {e}')
 
     def delete_selected_pairs(self):
         selected_indexes = self.tableView_marketdata.selectionModel().selectedRows()
@@ -77,8 +109,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             return
         selected_rows = [index.row() for index in selected_indexes]
         if selected_rows:
-            self.market_data_model.delete_selected_rows(selected_rows)
-            self.show_info_message('PAIR Dihapus', 'PAIR yang dipilih berhasil dihapus.')
+            try:
+                self.market_data_model.delete_selected_rows(selected_rows)
+                self.show_info_message('PAIR Dihapus', 'PAIR yang dipilih berhasil dihapus.')
+            except Exception as e:
+                logger.error(f'Gagal menghapus pasangan yang dipilih: {e}')
+                self.show_error_message('Error', f'Gagal menghapus pasangan yang dipilih: {e}')
 
     def show_context_menu(self, pos):
         menu = QMenu(self)
