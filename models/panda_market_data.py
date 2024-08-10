@@ -19,12 +19,9 @@ class ImportCSVThread(QThread):
 
     def run(self):
         try:
-            logger.info(f"Memulai impor data dari file: {self.file_name}")
             imported_data = pd.read_csv(self.file_name)
-            
             pairs_to_add = []
             current_pairs = set(self.model._data['PAIR'].values)
-
             batch_size = 100
             for i in range(0, len(imported_data), batch_size):
                 batch = imported_data.iloc[i:i+batch_size]
@@ -36,16 +33,11 @@ class ImportCSVThread(QThread):
                         self.model._data = pd.concat([self.model._data, pd.DataFrame([row], columns=self.model._headers)], ignore_index=True)
                         pairs_to_add.append(pair)
                         current_pairs.add(pair)
-
             for pair in pairs_to_add:
-                logger.info(f"Menambahkan pair baru ke WebSocket: {pair}")
                 self.model.add_pair(pair)
-
-            self.data_changed.emit()  # Emit sinyal untuk memperbarui data
-            logger.info("Data berhasil diimpor dan model diperbarui.")
+            self.data_changed.emit()
             self.result.emit(True)
         except Exception as e:
-            logger.error(f"Gagal mengimpor data dari CSV: {e}")
             self.result.emit(False)
 
 class PandaMarketData(QAbstractTableModel):
@@ -79,7 +71,6 @@ class PandaMarketData(QAbstractTableModel):
             if role in [Qt.BackgroundRole, Qt.ForegroundRole] and index.column() == 2:
                 return self.get_brush(value, role)
         except (IndexError, ValueError):
-            logger.error(f"Error accessing data at row {index.row()}, column {index.column()}: {Exception}")
             return None
         return None
 
@@ -107,15 +98,13 @@ class PandaMarketData(QAbstractTableModel):
                         if not new_row_df.isna().all().all():
                             self._data = pd.concat([self._data, new_row_df], ignore_index=True)
                             self._data.drop_duplicates(subset=["PAIR"], keep="last", inplace=True)
-
                 if updated_rows:
-                    # Emit sinyal untuk pembaruan baris tertentu saja
                     for row in updated_rows:
                         self.dataChanged.emit(self.index(row, 0), self.index(row, self.columnCount() - 1))
-                self.layoutChanged.emit()  # Emit sinyal untuk pembaruan tata letak
+                self.layoutChanged.emit()
                 self.data_changed.emit()
             except Exception as e:
-                logger.error(f"Gagal memperbarui data: {e}")
+                pass
 
     def add_pair(self, pair):
         if not pair:
@@ -128,7 +117,6 @@ class PandaMarketData(QAbstractTableModel):
             is_added = future.result()
             return is_added
         except Exception as e:
-            logger.error(f"Gagal menambahkan pasangan: {e}")
             return False
 
     def delete_pair(self, pair):
@@ -142,7 +130,7 @@ class PandaMarketData(QAbstractTableModel):
                     self._data.drop(row, inplace=True)
                     self.endRemoveRows()
         except Exception as e:
-            logger.error(f"Gagal menghapus pasangan: {e}")
+            pass
 
     def delete_selected_rows(self, selected_rows):
         try:
@@ -157,7 +145,7 @@ class PandaMarketData(QAbstractTableModel):
                 self._data.reset_index(drop=True, inplace=True)
                 self.layoutChanged.emit()
         except Exception as e:
-            logger.error(f"Gagal menghapus baris yang dipilih: {e}")
+            pass
 
     def sort(self, column: int, order: Qt.SortOrder):
         try:
@@ -172,16 +160,13 @@ class PandaMarketData(QAbstractTableModel):
                 self._data.reset_index(drop=True, inplace=True)
                 self.layoutChanged.emit()
         except Exception as e:
-            logger.error(f"Gagal mengurutkan data: {e}")
+            pass
 
     def export_market_data(self, file_name):
         with self.data_lock:
             try:
-                logger.info(f"Menjalankan ekspor data ke file: {file_name}")
                 self._data.to_csv(file_name, index=False)
-                logger.info("Data berhasil diekspor.")
             except Exception as e:
-                logger.error(f"Gagal mengekspor data ke file: {file_name}, error: {e}")
                 raise e
 
     def import_csv(self, file_name):
@@ -197,22 +182,20 @@ class PandaMarketData(QAbstractTableModel):
     @pyqtSlot(bool)
     def handle_import_result(self, success):
         if success:
-            logger.info("Impor data selesai.")
+            pass
         else:
-            logger.error("Impor data gagal.")
+            pass
 
     def format_price(self, value):
         try:
             return f"{float(value)}"
         except ValueError:
-            logger.error(f"Format harga tidak valid: {value}")
             return value
 
     def format_percentage_or_volume(self, value):
         try:
             return f"{float(value):.2f}"
         except ValueError:
-            logger.error(f"Format persentase atau volume tidak valid: {value}")
             return value
 
     def get_brush(self, value, role):
@@ -227,5 +210,4 @@ class PandaMarketData(QAbstractTableModel):
                 if change_percentage < 0 or change_percentage > 0:
                     return QBrush(QColor('white'))
         except ValueError:
-            logger.error(f"Format brush tidak valid untuk nilai: {value}")
             return None

@@ -55,3 +55,48 @@ class GateIOAPI:
             raise
         except Exception as e:
             raise
+    
+    @retry(stop=stop_after_attempt(3), wait=wait_fixed(2))
+    def place_order(self, currency_pair, amount, price, side):
+        try:
+            order = self.spot_api.create_order(
+                currency_pair=currency_pair,
+                amount=str(amount),
+                price=str(price),
+                side=side
+            )
+            return order
+        except ApiException as e:
+            raise
+        except Exception as e:
+            raise
+
+    @retry(stop=stop_after_attempt(3), wait=wait_fixed(2))
+    def get_order_status(self, currency_pair, order_id):
+        try:
+            order_status = self.spot_api.get_order(currency_pair, order_id)
+            return order_status
+        except ApiException as e:
+            raise
+        except Exception as e:
+            raise
+
+    @retry(stop=stop_after_attempt(3), wait=wait_fixed(2))
+    def get_trade_history(self, currency_pair):
+        try:
+            trade_history = self.spot_api.list_trades(currency_pair=currency_pair)
+            return trade_history
+        except ApiException as e:
+            raise
+        except Exception as e:
+            raise
+    
+    def check_rate_limit(self, response, api_type='private'):
+        rate_limit_remaining = int(response.headers.get('X-Rate-Limit-Remaining', 0))
+        rate_limit_reset = int(response.headers.get('X-Rate-Limit-Reset', 0))
+        if api_type == 'private':
+            rate_limit_threshold = 10
+        else:
+            rate_limit_threshold = 100
+        if rate_limit_remaining < rate_limit_threshold * 0.1:
+            logger.warning(f"Mendekati batas rate limit API. Sisa: {rate_limit_remaining}. Akan direset pada: {rate_limit_reset}.")

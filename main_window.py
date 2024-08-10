@@ -3,9 +3,8 @@ from PyQt5.QtWidgets import QApplication, QMainWindow, QHeaderView, QMessageBox,
 from PyQt5.QtCore import Qt
 from ui.ui_main_window import Ui_MainWindow
 from utils.logging_config import configure_logging
-from loaders.balances_loader import load_balances
-from models.balances_table_model import BalancesTableModel
-from models.panda_market_data import PandaMarketData
+from control.api_handler import ApiHandler  # Mengimpor kelas yang digabungkan dari api_handler.py
+from models.panda_market_data import PandaMarketData  # Tetap menggunakan model ini untuk data pasar
 
 logger = configure_logging('main_window', 'logs/main_window.log')
 
@@ -32,10 +31,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def load_balances(self):
         try:
-            table_data = load_balances()
+            # Menginisialisasi ApiHandler dan menggunakan data yang dihasilkan oleh load_balances
+            self.model = ApiHandler()
+            table_data = self.model.load_balances()
             if table_data is None:
                 raise ValueError("Data saldo kosong atau tidak valid.")
-            self.model = BalancesTableModel(table_data)
+            self.model._data = table_data
             self.tableView_accountdata.setModel(self.model)
             self.tableView_accountdata.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         except Exception as e:

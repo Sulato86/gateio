@@ -9,7 +9,6 @@ from PyQt5.QtCore import QObject
 logger = configure_logging('websocket_handler', 'logs/websocket_handler.log')
 executor = ThreadPoolExecutor()
 
-
 class WebSocketHandler(QObject):
     def __init__(self, model):
         super().__init__()
