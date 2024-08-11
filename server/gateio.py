@@ -1,0 +1,92 @@
+import json
+import asyncio
+import websockets
+import time
+from logging_config import configure_logging
+
+logger = configure_logging('gateio', 'logs/gateio.log')
+
+
+class GateIOWebSocket:
+    def __init__(self, message_callback=None, pairs=None, interval="1m"):
+        if pairs is None:
+            pairs = ["BTC_USDT"]
+        self.message_callback = message_callback
+        self.pairs = pairs
+        self.interval = interval
+        self.websocket = None
+
+    async def on_message(self, message: str):
+        try:
+            data = json.loads(message)
+            
+            if 'result' in data and 'n' in data['result']:
+                result = data['result']
+                
+                # Extracting data fields
+                timestamp = result.get('t')
+                total_volume = result.get('v')
+                close_price = result.get('c')
+                highest_price = result.get('h')
+                lowest_price = result.get('l')
+                open_price = result.get('o')
+                subscription_name = result.get('n')
+                base_currency_amount = result.get('a')
+                window_close = result.get('w')
+
+                # Logging data for debugging purposes
+                logger.info(f"Timestamp: {timestamp}")
+                logger.info(f"Total Volume: {total_volume}")
+                logger.info(f"Close Price: {close_price}")
+                logger.info(f"Highest Price: {highest_price}")
+                logger.info(f"Lowest Price: {lowest_price}")
+                logger.info(f"Open Price: {open_price}")
+                logger.info(f"Subscription Name: {subscription_name}")
+                logger.info(f"Base Currency Trading Amount: {base_currency_amount}")
+                logger.info(f"Window Close: {window_close}")
+            
+            if callable(self.message_callback):
+                if asyncio.iscoroutinefunction(self.message_callback):
+                    await self.message_callback(data)
+                else:
+                    self.message_callback(data)
+        except Exception as e:
+            logger.error(f"Error processing message: {e}")
+
+    async def subscribe(self):
+        for pair in self.pairs:
+            message = {
+                "time": int(time.time()),
+                "channel": "spot.candlesticks",
+                "event": "subscribe",
+                "payload": [self.interval, pair]
+            }
+            await self.websocket.send(json.dumps(message))
+            logger.info(f"Subscribed to {pair} with interval {self.interval}")
+
+    async def run(self):
+        uri = "wss://api.gateio.ws/ws/v4/"
+        while True:
+            try:
+                async with websockets.connect(uri) as websocket:
+                    self.websocket = websocket
+                    await self.subscribe()
+                    async for message in websocket:
+                        await self.on_message(message)
+            except Exception as e:
+                logger.error(f"WebSocket connection failed: {e}")
+                logger.info("Reconnecting in 5 seconds...")
+                await asyncio.sleep(5)  # Wait before trying to reconnect
+
+
+if __name__ == "__main__":
+    try:
+        websocket_instance = GateIOWebSocket(
+            message_callback=None,
+            pairs=["BTC_USDT", "ETH_USDT"],  # Example of subscribing to multiple pairs
+            interval="1m"  # You can set a different interval if needed
+        )
+        asyncio.run(websocket_instance.run())
+    except Exception as e:
+        logger.critical(f"An error occurred: {e}")
+        input("Press Enter to exit...")
