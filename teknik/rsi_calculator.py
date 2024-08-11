@@ -7,10 +7,8 @@ import websockets
 from datetime import datetime
 from collections import deque
 
-# Menambahkan root path project ke sys.path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-# Menggunakan fungsi configure_logging yang sudah ada
 from utils.logging_config import configure_logging
 
 logger = configure_logging('rsi_calculator', 'logs/rsi_calculator.log')
@@ -40,9 +38,7 @@ class RSI:
         self.close_prices.append(close_price)
         if len(self.close_prices) == self.close_prices.maxlen:
             return self.calculate_rsi()
-        else:
-            logger.debug(f"Waiting for more data to calculate RSI. Close prices: {list(self.close_prices)}")
-            return None
+        return None
 
     def calculate_rsi(self):
         gains = []
@@ -67,14 +63,11 @@ class RSI:
         self.previous_avg_gain = average_gain
         self.previous_avg_loss = average_loss
 
-        logger.debug(f"Average Gain: {average_gain}, Average Loss: {average_loss}")
-
         if average_loss == 0:
             return 100
 
         rs = average_gain / average_loss
         rsi = 100 - (100 / (1 + rs))
-        logger.debug(f"Calculated RSI: {rsi}")
         return rsi
 
 class GateIOWebSocketWithRSI:
@@ -91,7 +84,6 @@ class GateIOWebSocketWithRSI:
     async def on_message(self, message: str):
         try:
             data = json.loads(message)
-            logger.info(f"Received data: {data}")
             
             if 'result' in data and 'n' in data['result']:
                 result = data['result']
@@ -106,18 +98,15 @@ class GateIOWebSocketWithRSI:
                         if pair in self.rsi_calculators:
                             rsi_value = self.rsi_calculators[pair].add_close_price(close_price)
                             if rsi_value is not None:
-                                logger.info(f"RSI for {pair}: {rsi_value}")
                                 print(f"RSI for {pair}: {rsi_value}")
-                            else:
-                                logger.debug(f"RSI value not calculated yet for {pair}.")
                         else:
-                            logger.error(f"Pair {pair} not found in RSI calculators")
+                            pass
                     else:
-                        logger.debug(f"Skipping RSI calculation for {pair}, time since last update: {(current_time - self.last_update_time).seconds} seconds.")
+                        pass
                 else:
-                    logger.error(f"Data tidak berisi harga penutupan (close price)")
+                    pass
             else:
-                logger.error(f"Key 'n' not found in result or 'result' not as expected: {data}")
+                pass
 
             if callable(self.message_callback):
                 if asyncio.iscoroutinefunction(self.message_callback):
@@ -125,7 +114,7 @@ class GateIOWebSocketWithRSI:
                 else:
                     self.message_callback(data)
         except Exception as e:
-            logger.error(f"Error processing message: {e}")
+            pass
 
     async def subscribe(self, pairs):
         message = {
@@ -145,7 +134,6 @@ class GateIOWebSocketWithRSI:
                 async for message in websocket:
                     await self.on_message(message)
         except Exception as e:
-            logger.error(f"WebSocket connection failed: {e}")
             print(f"WebSocket connection failed: {e}")
 
 if __name__ == "__main__":
