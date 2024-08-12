@@ -21,7 +21,7 @@ class MainWindow(QMainWindow):
                 database="gateio",
                 user="postgres",
                 password="Wongk3r3n!",
-                host="192.168.1.14",
+                host="192.168.1.9",
                 port="5432"
             )
             logger.info("Connected to the PostgreSQL database successfully.")
