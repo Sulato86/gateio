@@ -6,7 +6,6 @@ from logging_config import configure_logging
 
 logger = configure_logging('gateio', 'logs/gateio.log')
 
-
 class GateIOWebSocket:
     def __init__(self, message_callback=None, pairs=None, interval="1m"):
         if pairs is None:
@@ -19,37 +18,24 @@ class GateIOWebSocket:
     async def on_message(self, message: str):
         try:
             data = json.loads(message)
-            
             if 'result' in data and 'n' in data['result']:
                 result = data['result']
-                
-                # Extracting data fields
-                timestamp = result.get('t')
-                total_volume = result.get('v')
-                close_price = result.get('c')
-                highest_price = result.get('h')
-                lowest_price = result.get('l')
-                open_price = result.get('o')
-                subscription_name = result.get('n')
-                base_currency_amount = result.get('a')
-                window_close = result.get('w')
-
-                # Logging data for debugging purposes
-                logger.info(f"Timestamp: {timestamp}")
-                logger.info(f"Total Volume: {total_volume}")
-                logger.info(f"Close Price: {close_price}")
-                logger.info(f"Highest Price: {highest_price}")
-                logger.info(f"Lowest Price: {lowest_price}")
-                logger.info(f"Open Price: {open_price}")
-                logger.info(f"Subscription Name: {subscription_name}")
-                logger.info(f"Base Currency Trading Amount: {base_currency_amount}")
-                logger.info(f"Window Close: {window_close}")
-            
-            if callable(self.message_callback):
-                if asyncio.iscoroutinefunction(self.message_callback):
-                    await self.message_callback(data)
-                else:
-                    self.message_callback(data)
+                extracted_data = {
+                    't': result.get('t'),
+                    'o': result.get('o'),
+                    'h': result.get('h'),
+                    'l': result.get('l'),
+                    'c': result.get('c'),
+                    'v': result.get('v'),
+                    'n': result.get('n'),
+                    'a': result.get('a'),
+                    'w': result.get('w')
+                }
+                if callable(self.message_callback):
+                    if asyncio.iscoroutinefunction(self.message_callback):
+                        await self.message_callback(extracted_data)
+                    else:
+                        self.message_callback(extracted_data)
         except Exception as e:
             logger.error(f"Error processing message: {e}")
 
@@ -76,8 +62,7 @@ class GateIOWebSocket:
             except Exception as e:
                 logger.error(f"WebSocket connection failed: {e}")
                 logger.info("Reconnecting in 5 seconds...")
-                await asyncio.sleep(5)  # Wait before trying to reconnect
-
+                await asyncio.sleep(5)
 
 if __name__ == "__main__":
     try:

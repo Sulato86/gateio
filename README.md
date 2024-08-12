@@ -1,26 +1,3 @@
-# trading-crypto
- untuk trading crypto dengan HTTP API
-
-### Struktur
-crypto-trading-app/
-│
-├── controller/
-│   ├── csv_handler.py
-│   ├── pandasa.py
-│   └── workers.py
-│
-├── api/
-│   └── api_gateio.py
-│
-├── ui/
-│   └── ui_main_window.py
-│
-├── .env
-├── main.py
-├── requirements.txt
-└── README.md
-
-
 
 ======================Designer=================
 pyuic5 -o ui/ui_main_window.py ui/main_window.ui
