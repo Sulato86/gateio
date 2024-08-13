@@ -12,7 +12,7 @@ import time
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from utils.logging_config import configure_logging
 
-logger = configure_logging('moving_averages_calculator', 'logs/moving_averages_calculator.log')
+logger = configure_logging('taliban', 'logs/taliban.log')
 
 
 class GateIOWebSocket:

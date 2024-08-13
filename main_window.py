@@ -39,9 +39,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             logger.error(f'Gagal memuat saldo akun: {e}')
 
     def sort_account_data(self, column):
-        """
-        Mengatur sorting untuk data akun ketika header kolom di tabel data akun diklik.
-        """
         order = self.tableView_accountdata.horizontalHeader().sortIndicatorOrder()
         self.account_data_model.sort_data(column, order)
 

@@ -3,16 +3,13 @@ import threading
 import sys
 import psycopg2
 from flask import Flask, request, jsonify
-from modul_server import DataHandler
-from logging_config import configure_logging  # Pastikan impor konfigurasi logging yang benar
+from server.data_handler import DataHandler
+from logging_config import configure_logging
 
-# Inisialisasi Flask
 app = Flask(__name__)
 
-# Inisialisasi logger
 logger = configure_logging('api_server', 'logs/api_server.log')
 
-# Inisialisasi DataHandler
 data_handler = None
 
 def start_modul_server():
@@ -20,7 +17,6 @@ def start_modul_server():
     data_handler = DataHandler()
     data_handler.start_websocket()
 
-# Route untuk menambah pair
 @app.route('/add_pair', methods=['POST'])
 def add_pair():
     try:
@@ -37,10 +33,24 @@ def add_pair():
         logger.error(f"Terjadi kesalahan saat memproses permintaan POST: {e}")
         return jsonify({"error": "Internal server error"}), 500
 
-if __name__ == '__main__':
-    # Mulai modul_server.py sebagai thread
-    threading.Thread(target=start_modul_server, daemon=True).start()
+@app.route('/get_candlestick_data', methods=['GET'])
+def get_candlestick_data():
+    try:
+        pair = request.args.get('pair')
+        period = int(request.args.get('period'))
+        limit = int(request.args.get('limit', 100))
+        if not pair or not period:
+            logger.warning("Pair dan periode tidak diberikan dalam permintaan.")
+            return jsonify({"error": "Pair and period are required"}), 400
+        data = data_handler.fetch_candlestick_data(pair, period, limit)
+        if not data:
+            return jsonify({"error": "No data available"}), 404
+        return jsonify(data), 200
+    except Exception as e:
+        logger.error(f"Failed to fetch candlestick data: {e}")
+        return jsonify({"error": "Internal server error"}), 500
 
-    # Jalankan Flask API
+if __name__ == '__main__':
+    threading.Thread(target=start_modul_server, daemon=True).start()
     logger.info("API server dimulai, menunggu permintaan...")
     app.run(host='0.0.0.0', port=5000)

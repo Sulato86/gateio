@@ -4,7 +4,7 @@ import websockets
 import time
 from logging_config import configure_logging
 
-logger = configure_logging('gateio', 'gateio/logs/gateio.log')
+logger = configure_logging('gateio', 'logs/gateio.log')
 
 class GateIOWebSocket:
     def __init__(self, message_callback=None, pairs=None, interval="1m"):

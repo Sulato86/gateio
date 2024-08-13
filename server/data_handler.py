@@ -7,7 +7,7 @@ from datetime import datetime
 from logging_config import configure_logging
 from gateio import GateIOWebSocket
 
-logger = configure_logging('main_server', 'gateio/logs/main_server.log')
+logger = configure_logging('data_handler', 'logs/data_handler.log')
 
 class DataHandler:
     def __init__(self):
@@ -54,7 +54,6 @@ class DataHandler:
                 ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
             """
             local_timestamp = self.epoch_to_local_time(data.get('t'))
-            
             if local_timestamp is None:
                 logger.warning("Skipping insertion due to invalid timestamp.")
                 return
@@ -75,6 +74,28 @@ class DataHandler:
         except Exception as e:
             logger.error(f"Failed to insert data into the database: {e}")
             self.db_connection.rollback()
+
+    def fetch_candlestick_data(self, pair, period, limit=100):
+        try:
+            cursor = self.db_connection.cursor()
+            subscription_name = f"1m_{pair}"
+            query = f"""
+                SELECT close, timestamp FROM candlestick_data 
+                WHERE subscription_name = %s 
+                ORDER BY timestamp DESC 
+                LIMIT %s
+            """
+            cursor.execute(query, (subscription_name, limit))
+            rows = cursor.fetchall()
+            cursor.close()
+            if any(row[0] is None for row in rows):
+                logger.error("Received None value in data, skipping these entries.")
+                rows = [row for row in rows if row[0] is not None]
+            rows.reverse()
+            return [float(row[0]) for row in rows]
+        except Exception as e:
+            logger.error(f"Failed to fetch candlestick data: {e}")
+            return []
 
     def start_websocket(self):
         self.websocket_instance = GateIOWebSocket(
