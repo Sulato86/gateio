@@ -4,12 +4,12 @@ import websockets
 import time
 from logging_config import configure_logging
 
-logger = configure_logging('gateio', 'logs/gateio.log')
+logger = configure_logging('gateio', 'gateio/logs/gateio.log')
 
 class GateIOWebSocket:
     def __init__(self, message_callback=None, pairs=None, interval="1m"):
-        if pairs is None:
-            pairs = ["BTC_USDT"]
+        if pairs is None or not pairs:
+            raise ValueError("Pairs list cannot be None or empty.")
         self.message_callback = message_callback
         self.pairs = pairs
         self.interval = interval
@@ -63,15 +63,3 @@ class GateIOWebSocket:
                 logger.error(f"WebSocket connection failed: {e}")
                 logger.info("Reconnecting in 5 seconds...")
                 await asyncio.sleep(5)
-
-if __name__ == "__main__":
-    try:
-        websocket_instance = GateIOWebSocket(
-            message_callback=None,
-            pairs=["BTC_USDT", "ETH_USDT"],  # Example of subscribing to multiple pairs
-            interval="1m"  # You can set a different interval if needed
-        )
-        asyncio.run(websocket_instance.run())
-    except Exception as e:
-        logger.critical(f"An error occurred: {e}")
-        input("Press Enter to exit...")

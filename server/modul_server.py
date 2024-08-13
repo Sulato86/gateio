@@ -2,18 +2,18 @@ import asyncio
 import threading
 import sys
 import psycopg2
-from PyQt5.QtWidgets import QApplication, QMainWindow
 from datetime import datetime
 from logging_config import configure_logging
 from gateio import GateIOWebSocket
 
-logger = configure_logging('main_server', 'logs/main_server.log')
+logger = configure_logging('main_server', 'gateio/logs/main_server.log')
 
-class MainWindow(QMainWindow):
+class DataHandler:
     def __init__(self):
-        super(MainWindow, self).__init__()
         self.db_connection = self.connect_to_db()
-        self.start_websocket()
+        self.pairs = ["BTC_USDT"]  # Pair default bisa diatur di sini
+        self.loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(self.loop)
 
     def connect_to_db(self):
         try:
@@ -21,7 +21,7 @@ class MainWindow(QMainWindow):
                 database="gateio",
                 user="postgres",
                 password="Wongk3r3n!",
-                host="192.168.1.9",
+                host="localhost",
                 port="5432"
             )
             logger.info("Connected to the PostgreSQL database successfully.")
@@ -72,26 +72,27 @@ class MainWindow(QMainWindow):
             logger.info("Data inserted into the database successfully.")
         except Exception as e:
             logger.error(f"Failed to insert data into the database: {e}")
+            self.db_connection.rollback()
 
     def start_websocket(self):
-        def run_websocket():
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            websocket_instance = GateIOWebSocket(
-                message_callback=self.insert_data_to_db
-            )
-            loop.run_until_complete(websocket_instance.run())
-        threading.Thread(target=run_websocket, daemon=True).start()
+        websocket_instance = GateIOWebSocket(
+            message_callback=self.insert_data_to_db,
+            pairs=self.pairs
+        )
+        self.loop.run_until_complete(websocket_instance.run())
+
+    def add_pair(self, pair):
+        self.pairs.append(pair)
+        logger.info(f"New pair {pair} added. Restarting WebSocket to subscribe to new pairs.")
+        self.loop.call_soon_threadsafe(self.start_websocket)
 
 def main():
-    app = QApplication(sys.argv)
-    window = MainWindow()
-    window.show()
-    sys.exit(app.exec_())
-
-if __name__ == "__main__":
+    handler = DataHandler()
     try:
-        main()
+        handler.start_websocket()
     except Exception as e:
         logger.critical(f"An error occurred in main: {e}")
-        input("Press Enter to exit...")
+        sys.exit(1)
+
+if __name__ == "__main__":
+    main()

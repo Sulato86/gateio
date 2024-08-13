@@ -12,3 +12,4 @@ qasync
 TA-Lib
 asyncio
 tenacity
+psycopg2

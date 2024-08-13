@@ -1,0 +1,16 @@
+[Unit]
+Description=API Server Service with WebSocket
+After=network.target
+
+[Service]
+ExecStart=/home/sulato/gateio/venv/bin/python3.12 /home/sulato/gateio/api_server.py
+Restart=always
+RestartSec=5
+StartLimitIntervalSec=60
+StartLimitBurst=3
+User=sulato
+Environment=PATH=/home/sulato/gateio/venv/bin:/usr/bin
+WorkingDirectory=/home/sulato/gateio/
+
+[Install]
+WantedBy=multi-user.target
