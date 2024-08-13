@@ -44,12 +44,12 @@ class DataHandler:
             logger.error(f"Error converting epoch time: {e}")
             return None
 
-    def insert_data_to_db(self, data):
+    def insert_data_to_db(self, data, window_close):
         try:
             cursor = self.db_connection.cursor()
             query = """
                 INSERT INTO candlestick_data (
-                    timestamp, open, high, low, close, total_volume, subscription_name, 
+                    timestamp, open, high, low, close, total_volume, subscription_name,
                     base_currency_amount, window_close
                 ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
             """
@@ -66,7 +66,7 @@ class DataHandler:
                 data.get('v'),
                 data.get('n'),
                 data.get('a'),
-                data.get('w')
+                window_close
             ))
             self.db_connection.commit()
             cursor.close()
@@ -80,9 +80,9 @@ class DataHandler:
             cursor = self.db_connection.cursor()
             subscription_name = f"1m_{pair}"
             query = f"""
-                SELECT close, timestamp FROM candlestick_data 
-                WHERE subscription_name = %s 
-                ORDER BY timestamp DESC 
+                SELECT close, timestamp FROM candlestick_data
+                WHERE subscription_name = %s AND window_close = 'true'
+                ORDER BY timestamp DESC
                 LIMIT %s
             """
             cursor.execute(query, (subscription_name, limit))
@@ -109,12 +109,11 @@ class DataHandler:
             self.pairs.append(pair)
             logger.info(f"New pair {pair} added.")
             if self.websocket_instance and self.websocket_instance.websocket:
-                # Kirim pesan subscribe baru tanpa merestart WebSocket
                 asyncio.run_coroutine_threadsafe(
                     self.websocket_instance.websocket.send(json.dumps({
                         "time": int(time.time()),
                         "channel": "spot.candlesticks",
-                        "event": "subscribe", 
+                        "event": "subscribe",
                         "payload": [self.websocket_instance.interval, pair]
                     })),
                     self.loop

@@ -20,6 +20,7 @@ class GateIOWebSocket:
             data = json.loads(message)
             if 'result' in data and 'n' in data['result']:
                 result = data['result']
+                window_close = result.get('w')
                 extracted_data = {
                     't': result.get('t'),
                     'o': result.get('o'),
@@ -29,13 +30,13 @@ class GateIOWebSocket:
                     'v': result.get('v'),
                     'n': result.get('n'),
                     'a': result.get('a'),
-                    'w': result.get('w')
+                    'w': window_close
                 }
                 if callable(self.message_callback):
                     if asyncio.iscoroutinefunction(self.message_callback):
-                        await self.message_callback(extracted_data)
+                        await self.message_callback(extracted_data, window_close)
                     else:
-                        self.message_callback(extracted_data)
+                        self.message_callback(extracted_data, window_close)
         except Exception as e:
             logger.error(f"Error processing message: {e}")
 
