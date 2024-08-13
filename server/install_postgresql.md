@@ -7,7 +7,6 @@
 2. Instal PostgreSQL
 
     sudo apt install postgresql postgresql-contrib
-    sudo apt-get install build-essential libpq-dev python3-dev
 
 3. Mulai dan Aktifkan Layanan PostgreSQL
 
@@ -62,3 +61,16 @@
     4. Verifikasi Perubahan
     psql -U postgres
     Kemudian, Anda akan diminta untuk memasukkan password baru yang telah Anda tetapkan.
+
+    5. Ubah Metode Autentikasi
+    sudo nano /etc/postgresql/14/main/pg_hba.conf
+
+    ubah:
+    local   all             postgres                                peer
+
+    menjadi
+    local   all             postgres                                md5
+
+    restart postgresql
+    sudo systemctl restart postgresql
+
