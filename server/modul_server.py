@@ -1,7 +1,8 @@
 import asyncio
-import threading
 import sys
 import psycopg2
+import json
+import time
 from datetime import datetime
 from logging_config import configure_logging
 from gateio import GateIOWebSocket
@@ -11,9 +12,10 @@ logger = configure_logging('main_server', 'gateio/logs/main_server.log')
 class DataHandler:
     def __init__(self):
         self.db_connection = self.connect_to_db()
-        self.pairs = ["BTC_USDT"]  # Pair default bisa diatur di sini
+        self.pairs = ["BTC_USDT"]
         self.loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self.loop)
+        self.websocket_instance = None
 
     def connect_to_db(self):
         try:
@@ -75,24 +77,26 @@ class DataHandler:
             self.db_connection.rollback()
 
     def start_websocket(self):
-        websocket_instance = GateIOWebSocket(
+        self.websocket_instance = GateIOWebSocket(
             message_callback=self.insert_data_to_db,
             pairs=self.pairs
         )
-        self.loop.run_until_complete(websocket_instance.run())
+        self.loop.run_until_complete(self.websocket_instance.run())
 
     def add_pair(self, pair):
-        self.pairs.append(pair)
-        logger.info(f"New pair {pair} added. Restarting WebSocket to subscribe to new pairs.")
-        self.loop.call_soon_threadsafe(self.start_websocket)
-
-def main():
-    handler = DataHandler()
-    try:
-        handler.start_websocket()
-    except Exception as e:
-        logger.critical(f"An error occurred in main: {e}")
-        sys.exit(1)
-
-if __name__ == "__main__":
-    main()
+        if pair not in self.pairs:
+            self.pairs.append(pair)
+            logger.info(f"New pair {pair} added.")
+            if self.websocket_instance and self.websocket_instance.websocket:
+                # Kirim pesan subscribe baru tanpa merestart WebSocket
+                asyncio.run_coroutine_threadsafe(
+                    self.websocket_instance.websocket.send(json.dumps({
+                        "time": int(time.time()),
+                        "channel": "spot.candlesticks",
+                        "event": "subscribe", 
+                        "payload": [self.websocket_instance.interval, pair]
+                    })),
+                    self.loop
+                )
+            else:
+                logger.warning("WebSocket instance is not ready.")

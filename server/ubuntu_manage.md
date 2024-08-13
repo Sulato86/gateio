@@ -57,6 +57,16 @@
     Install package library
     pip install -r requirements.txt
 
+    # non anaconda
+    Aktifkan Virtual Environment
+    source venv/bin/activate
+
+    Install Dependensi
+    pip install -r requirements.txt
+
+    Menonaktifkan Virtual Environment
+    deactivate
+
 # Systemd
     copy api_server.service ke /etc/systemd/system
 
