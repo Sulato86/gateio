@@ -87,3 +87,35 @@
 
     Restart Service:
     sudo systemctl restart api_server.service
+
+# Redis untuk celery
+
+    Test redis;
+    redis-cli ping
+
+    Menjalankan Redis;
+    redis-server
+
+    Install Redis Tools;
+    apt install redis-tools
+
+    Install Redis Server;
+    sudo apt install redis-server
+
+    Menjalankan celery;
+    celery -A tasks worker --loglevel=info
+
+# Worker Celery
+
+    Melihat Worker Celery yang Sedang Berjalan;
+    Menggunakan Perintah ps
+    ps aux | grep 'celery worker'
+
+    Menggunakan pgrep
+    pgrep -f 'celery worker'
+
+    Menghentikan dengan pkill
+    pkill -f 'celery worker'
+
+    Menghentikan dengan kill
+    kill <PID>

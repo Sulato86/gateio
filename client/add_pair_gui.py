@@ -37,9 +37,18 @@ class AddPairApp:
         self.submit_button = tk.Button(root, text="Add Pair", command=self.start_thread)
         self.submit_button.pack(pady=20)
 
+        # Tombol untuk Menjalankan Celery Command
+        self.celery_command_button = tk.Button(root, text="Run Celery Command", command=self.start_celery_thread)
+        self.celery_command_button.pack(pady=10)
+
     def start_thread(self):
         # Mulai thread baru untuk menjalankan add_pair tanpa membekukan GUI
         thread = threading.Thread(target=self.add_pair)
+        thread.start()
+
+    def start_celery_thread(self):
+        # Mulai thread baru untuk menjalankan celery command tanpa membekukan GUI
+        thread = threading.Thread(target=self.run_celery_command)
         thread.start()
 
     def add_pair(self):
@@ -58,6 +67,27 @@ class AddPairApp:
                 error_message = response.json().get('error', 'Unknown error')
                 self.show_message("Error", f"Failed to add pair: {error_message}")
                 logger.error(f"Gagal menambahkan pair {pair}: {error_message}")
+        except Exception as e:
+            self.show_message("Error", f"Request failed: {str(e)}")
+            logger.error(f"Request gagal: {str(e)}")
+
+    def run_celery_command(self):
+        url = self.url_entry.get().replace('/add_pair', '/run_celery_command')  # Mengubah URL untuk Celery
+        command = "celery -A tasks worker --loglevel=info"  # Perintah Celery yang ingin dijalankan
+        data = {"command": command}
+
+        try:
+            logger.debug(f"Mengirim perintah Celery: {command}")
+            response = requests.post(url, json=data)
+
+            if response.status_code == 200:
+                result = response.json()
+                self.show_message("Success", f"Celery command executed.\nOutput: {result.get('output')}\nError: {result.get('error')}")
+                logger.info(f"Celery command berhasil dijalankan.")
+            else:
+                error_message = response.json().get('error', 'Unknown error')
+                self.show_message("Error", f"Failed to run celery command: {error_message}")
+                logger.error(f"Gagal menjalankan perintah Celery: {error_message}")
         except Exception as e:
             self.show_message("Error", f"Request failed: {str(e)}")
             logger.error(f"Request gagal: {str(e)}")

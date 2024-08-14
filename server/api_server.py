@@ -2,6 +2,7 @@ import asyncio
 import threading
 import sys
 import psycopg2
+import subprocess
 from flask import Flask, request, jsonify
 from data_handler import DataHandler
 from logging_config import configure_logging
@@ -39,15 +40,36 @@ def get_candlestick_data():
         pair = request.args.get('pair')
         period = int(request.args.get('period'))
         limit = int(request.args.get('limit', 100))
+        timeframe = request.args.get('timeframe', '1m')
+        
         if not pair or not period:
             logger.warning("Pair dan periode tidak diberikan dalam permintaan.")
             return jsonify({"error": "Pair and period are required"}), 400
-        data = data_handler.fetch_candlestick_data(pair, period, limit)
+        
+        data = data_handler.fetch_candlestick_data(pair, period, timeframe, limit)
         if not data:
             return jsonify({"error": "No data available"}), 404
         return jsonify(data), 200
     except Exception as e:
         logger.error(f"Failed to fetch candlestick data: {e}")
+        return jsonify({"error": "Internal server error"}), 500
+
+@app.route('/run_celery_command', methods=['POST'])
+def run_celery_command():
+    try:
+        command = request.json.get('command')
+        if command:
+            logger.info(f"Menjalankan perintah Celery: {command}")
+            result = subprocess.run(command, shell=True, capture_output=True, text=True)
+            logger.info(f"Output: {result.stdout}")
+            if result.stderr:
+                logger.error(f"Error: {result.stderr}")
+            return jsonify({"output": result.stdout, "error": result.stderr}), 200
+        else:
+            logger.warning("Permintaan POST tidak memiliki field 'command'.")
+            return jsonify({"error": "No command provided"}), 400
+    except Exception as e:
+        logger.error(f"Terjadi kesalahan saat menjalankan perintah Celery: {e}")
         return jsonify({"error": "Internal server error"}), 500
 
 if __name__ == '__main__':
