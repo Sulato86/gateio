@@ -3,7 +3,7 @@ import threading
 import sys
 import psycopg2
 from flask import Flask, request, jsonify
-from server.data_handler import DataHandler
+from data_handler import DataHandler
 from logging_config import configure_logging
 
 app = Flask(__name__)

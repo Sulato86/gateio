@@ -12,7 +12,7 @@ logger = configure_logging('data_handler', 'logs/data_handler.log')
 class DataHandler:
     def __init__(self):
         self.db_connection = self.connect_to_db()
-        self.pairs = ["BTC_USDT"]
+        self.pairs = ["BTC_USDT", "ETH_USDT"]
         self.loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self.loop)
         self.websocket_instance = None
