@@ -1,0 +1,17 @@
+[Unit]
+Description=Celery Worker Service
+After=network.target
+
+[Service]
+Type=forking
+User=root
+Group=root
+WorkingDirectory=/home/sulato/gateio/
+ExecStart=/home/sulato/anaconda3/bin/celery -A tasks worker --loglevel=info
+Restart=always
+RestartSec=5
+StartLimitIntervalSec=60
+StartLimitBurst=3
+
+[Install]
+WantedBy=multi-user.target

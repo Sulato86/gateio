@@ -45,14 +45,26 @@
     Aktifkan Anaconda:
     source ~/anaconda3/bin/activate
 
+    Menambahkan PATH:
+    echo 'export PATH="~/anaconda3/bin:$PATH"' >> ~/.bashrc
+    source ~/.bashrc
+
     Membuat Environment Baru:
     conda create --name nama_environment python=3.12
 
     Aktifkan Environtment Baru:
     conda activate nama_environment
 
-    install dependencies untuk psycopg2
-    sudo apt-get install build-essential libpq-dev python3-dev
+    List conda environment
+    conda env list
+    conda info --envs
+
+    Mengubah environtment defaul
+    nano ~/.bashrc
+    Tambahkan
+    conda activate myenv
+    Terapkan Perubahan
+    source ~/.bashrc
     
     Install package library
     pip install -r requirements.txt
@@ -96,12 +108,6 @@
     Menjalankan Redis;
     redis-server
 
-    Install Redis Tools;
-    apt install redis-tools
-
-    Install Redis Server;
-    sudo apt install redis-server
-
     Menjalankan celery;
     celery -A tasks worker --loglevel=info
 
@@ -119,3 +125,15 @@
 
     Menghentikan dengan kill
     kill <PID>
+
+# membuat user baru
+
+    Buat User Baru
+    sudo adduser nama_pengguna_baru
+
+    Tambahkan User Baru ke Grup Sudo (Opsional)
+    sudo usermod -aG sudo nama_pengguna_baru
+
+    Verifikasi User Baru
+    su - nama_pengguna_baru
+

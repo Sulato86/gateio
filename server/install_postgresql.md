@@ -4,9 +4,9 @@
     sudo apt update
     sudo apt upgrade
 
-2. Instal PostgreSQL
+2. Instal PostgreSQL, dependencies psycopg2, Redis Tools, Redis Server, celery
 
-    sudo apt install postgresql postgresql-contrib
+    sudo apt install postgresql postgresql-contrib build-essential libpq-dev python3-dev redis-tools redis-server celery -y
 
 3. Mulai dan Aktifkan Layanan PostgreSQL
 

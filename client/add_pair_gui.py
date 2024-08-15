@@ -22,7 +22,7 @@ class AddPairApp:
         # Entry untuk API URL
         self.url_entry = tk.Entry(root, width=50)
         self.url_entry.pack(pady=5)
-        self.url_entry.insert(0, "http://194.233.66.8:5000/add_pair")
+        self.url_entry.insert(0, "http://192.168.1.7:5000/add_pair")
 
         # Label untuk Pair
         self.pair_label = tk.Label(root, text="Trading Pair:")
