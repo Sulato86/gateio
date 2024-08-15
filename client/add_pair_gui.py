@@ -31,7 +31,7 @@ class AddPairApp:
         # Entry untuk Pair
         self.pair_entry = tk.Entry(root, width=20)
         self.pair_entry.pack(pady=5)
-        self.pair_entry.insert(0, "XLM_USDT")
+        self.pair_entry.insert(0, "PEPE_USDT")
 
         # Tombol untuk Submit
         self.submit_button = tk.Button(root, text="Add Pair", command=self.start_thread)

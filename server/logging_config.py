@@ -2,7 +2,7 @@ import logging
 import os
 from logging.handlers import RotatingFileHandler
 
-def configure_logging(logger_name, log_file, level=logging.DEBUG, max_bytes=1024*1024*15, backup_count=1):
+def configure_logging(logger_name, log_file, level=logging.DEBUG, max_bytes=1024*1024*5, backup_count=1):
     """
     Mengonfigurasi logger dengan file handler yang berotasi dan console handler.
 

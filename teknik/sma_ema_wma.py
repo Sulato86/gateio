@@ -12,7 +12,7 @@ logger = configure_logging('sma_ema_wma', 'logs/sma_ema_wma.log')
 
 def fetch_data_from_api(pair, period, timeframe, limit=100, retries=3, backoff_factor=1):
     # URL endpoint /get_candlestick_data di server Flask (api_server.py)
-    url = f"http://194.233.66.8:5000/get_candlestick_data?pair={pair}&period={period}&timeframe={timeframe}&limit={limit}"
+    url = f"http://192.168.1.7:5000/get_candlestick_data?pair={pair}&period={period}&timeframe={timeframe}&limit={limit}"
 
     session = requests.Session()
     retry = Retry(
@@ -75,7 +75,7 @@ def calculate_moving_averages(pair, period, timeframe):
         return None, None, None
 
 if __name__ == "__main__":
-    pair = "BTC_USDT"
+    pair = "XLM_USDT"
     period = 14
     timeframe = "5m"  # Contoh penggunaan timeframe 5 menit
 

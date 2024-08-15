@@ -5,17 +5,28 @@ import json
 import time
 from datetime import datetime
 from logging_config import configure_logging
-from gateio_ws import GateIOWebSocket
+from server.gateio_ws import GateIOWebSocket
 
 logger = configure_logging('data_handler', 'logs/data_handler.log')
 
 class DataHandler:
     def __init__(self):
+        logger.info("Initializing DataHandler.")
         self.db_connection = self.connect_to_db()
         self.pairs = ["BTC_USDT", "ETH_USDT"]
         self.loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self.loop)
         self.websocket_instance = None
+
+        logger.info(f"Default pairs: {self.pairs}")
+        
+        # Log inisialisasi tugas Celery
+        for pair in self.pairs:
+            from tasks import create_higher_timeframe_candlesticks
+            logger.info(f"Scheduling Celery tasks for {pair}.")
+            create_higher_timeframe_candlesticks.apply_async((pair, '5m'))
+            create_higher_timeframe_candlesticks.apply_async((pair, '15m'))
+            create_higher_timeframe_candlesticks.apply_async((pair, '1h'))
 
     def connect_to_db(self):
         try:
@@ -26,6 +37,7 @@ class DataHandler:
                 host="localhost",
                 port="5432"
             )
+            logger.info("Connected to the PostgreSQL database successfully.")
             return connection
         except Exception as e:
             logger.critical(f"Failed to connect to the database: {e}")
@@ -34,9 +46,11 @@ class DataHandler:
     def epoch_to_local_time(self, epoch_time):
         try:
             if epoch_time is None:
+                logger.error("Received None as epoch time, returning None.")
                 return None
             epoch_time = float(epoch_time)
             local_time = datetime.fromtimestamp(epoch_time).strftime('%Y-%m-%d %H:%M:%S')
+            logger.debug(f"Converted epoch time {epoch_time} to local time {local_time}.")
             return local_time
         except (TypeError, ValueError) as e:
             logger.error(f"Error converting epoch time: {e}")
@@ -53,6 +67,7 @@ class DataHandler:
             """
             local_timestamp = self.epoch_to_local_time(data.get('t'))
             if local_timestamp is None:
+                logger.warning("Skipping insertion due to invalid timestamp.")
                 return
             cursor.execute(query, (
                 local_timestamp,
@@ -67,12 +82,38 @@ class DataHandler:
             ))
             self.db_connection.commit()
             cursor.close()
+            logger.info(f"Data for {data.get('n')} inserted into the database successfully.")
         except Exception as e:
             logger.error(f"Failed to insert data into the database: {e}")
             self.db_connection.rollback()
 
+    def fetch_candlestick_data(self, pair, period, timeframe='1m', limit=100):
+        try:
+            subscription_name = f"{timeframe}_{pair}"
+            logger.info(f"Fetching {limit} candlesticks for {pair} with timeframe {timeframe}.")
+            cursor = self.db_connection.cursor()
+            query = f"""
+                SELECT close, timestamp FROM candlestick_data
+                WHERE subscription_name = %s AND window_close = 'true'
+                ORDER BY timestamp DESC
+                LIMIT %s
+            """
+            cursor.execute(query, (subscription_name, limit))
+            rows = cursor.fetchall()
+            cursor.close()
+            if any(row[0] is None for row in rows):
+                logger.error("Received None value in data, skipping these entries.")
+                rows = [row for row in rows if row[0] is not None]
+            rows.reverse()
+            logger.info(f"Fetched {len(rows)} candlesticks for {pair} with timeframe {timeframe}.")
+            return [float(row[0]) for row in rows]
+        except Exception as e:
+            logger.error(f"Failed to fetch candlestick data for {pair} on {timeframe}: {e}")
+            return []
+
     def start_websocket(self):
         try:
+            logger.info("Starting WebSocket connection.")
             self.websocket_instance = GateIOWebSocket(
                 message_callback=self.insert_data_to_db,
                 pairs=self.pairs
@@ -84,6 +125,7 @@ class DataHandler:
     def add_pair(self, pair):
         if pair not in self.pairs:
             self.pairs.append(pair)
+            logger.info(f"New pair {pair} added.")
             if self.websocket_instance and self.websocket_instance.websocket:
                 asyncio.run_coroutine_threadsafe(
                     self.websocket_instance.websocket.send(json.dumps({
@@ -94,5 +136,13 @@ class DataHandler:
                     })),
                     self.loop
                 )
-            logger.info(f"New pair {pair} added and subscribed.")
+                logger.info(f"Subscribed to new pair {pair} on WebSocket.")
+            else:
+                logger.warning("WebSocket instance is not ready.")
 
+            # Tambahkan tugas celery untuk timeframe yang berbeda
+            from tasks import create_higher_timeframe_candlesticks
+            logger.info(f"Scheduling Celery tasks for new pair {pair}.")
+            create_higher_timeframe_candlesticks.apply_async((pair, '5m'))
+            create_higher_timeframe_candlesticks.apply_async((pair, '15m'))
+            create_higher_timeframe_candlesticks.apply_async((pair, '1h'))

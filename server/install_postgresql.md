@@ -1,12 +1,17 @@
 # INSTALL PostgreSQL
 1. Perbarui Sistem
-    
-    sudo apt update
-    sudo apt upgrade
+    sudo apt update && apt upgrade -y
+
+    Unduh Kunci GPG Secara Manual
+    wget https://www.postgresql.org/media/keys/ACCC4CF8.asc
+
+    Tambahkan Kunci GPG ke Sistem dengan Cara yang Benar
+    gpg --dearmor -o /etc/apt/trusted.gpg.d/postgresql.gpg ACCC4CF8.asc
 
 2. Instal PostgreSQL, dependencies psycopg2, Redis Tools, Redis Server, celery
 
-    sudo apt install postgresql postgresql-contrib build-essential libpq-dev python3-dev redis-tools redis-server celery -y
+    sudo apt install postgresql postgresql-contrib build-essential libpq-dev python3-dev redis-tools redis-server celery python3-pip psycopg2
+ -y
 
 3. Mulai dan Aktifkan Layanan PostgreSQL
 
