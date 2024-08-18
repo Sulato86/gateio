@@ -1,12 +1,14 @@
 import os
-from utils.logging_config import configure_logging
+import requests
 from dotenv import load_dotenv
 from gate_api import Configuration, ApiClient, SpotApi, ApiException
 from tenacity import retry, stop_after_attempt, wait_fixed
 from cachetools import cached, TTLCache
+from utils.logging_config import configure_logging
 
+# Load environment variables
 load_dotenv()
-logger = configure_logging('api_gateio', 'logs/api_gateio.log')
+logger = configure_logging('api_service', 'logs/api_service.log')
 
 def get_api_credentials():
     api_key = os.getenv('API_KEY')
@@ -15,6 +17,7 @@ def get_api_credentials():
         raise ValueError("API_KEY dan API_SECRET harus disetel dalam environment variables")
     return api_key, api_secret
 
+# API Client setup
 api_key, api_secret = get_api_credentials()
 configuration = Configuration(key=api_key, secret=api_secret)
 api_client = ApiClient(configuration=configuration)
@@ -100,3 +103,62 @@ class GateIOAPI:
             rate_limit_threshold = 100
         if rate_limit_remaining < rate_limit_threshold * 0.1:
             logger.warning(f"Mendekati batas rate limit API. Sisa: {rate_limit_remaining}. Akan direset pada: {rate_limit_reset}.")
+
+class ApiHandler:
+    def __init__(self):
+        self.api = GateIOAPI(api_client)
+
+    def load_balances(self):
+        try:
+            balances = self.api.get_balances()
+            if not balances or 'spot' not in balances:
+                return [["-", 0, 0]]
+            spot_balances = balances['spot']
+            table_data = [
+                [balance.currency, float(balance.available), float(balance.locked)]
+                for balance in spot_balances
+            ]
+            return table_data if table_data else [["-", 0, 0]]
+        except KeyError:
+            return [["-", 0, 0]]
+        except Exception as e:
+            logger.error(f"Gagal memuat saldo: {e}")
+            return [["-", 0, 0]]
+
+    def get_balances_data(self):
+        return self.load_balances()
+
+    def get_order_history(self, currency_pair):
+        try:
+            return self.api.get_order_history(currency_pair)
+        except Exception as e:
+            logger.error(f"Gagal memuat riwayat order: {e}")
+            return []
+
+    def cancel_order(self, currency_pair, order_id):
+        try:
+            return self.api.cancel_order(currency_pair, order_id)
+        except Exception as e:
+            logger.error(f"Gagal membatalkan order: {e}")
+            return {"error": "Gagal membatalkan order"}
+
+    def place_order(self, currency_pair, amount, price, side):
+        try:
+            return self.api.place_order(currency_pair, amount, price, side)
+        except Exception as e:
+            logger.error(f"Gagal membuat order: {e}")
+            return {"error": "Gagal membuat order"}
+
+    def get_order_status(self, currency_pair, order_id):
+        try:
+            return self.api.get_order_status(currency_pair, order_id)
+        except Exception as e:
+            logger.error(f"Gagal memuat status order: {e}")
+            return {}
+
+    def get_trade_history(self, currency_pair):
+        try:
+            return self.api.get_trade_history(currency_pair)
+        except Exception as e:
+            logger.error(f"Gagal memuat riwayat perdagangan: {e}")
+            return []

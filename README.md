@@ -37,6 +37,48 @@ Regulatory Compliance: Memastikan bahwa semua aktivitas trading mematuhi peratur
 
 
 
+# Ewes1.py
+import tkinter as tk
+from tkinter import ttk
+
+class SearchableComboBox(ttk.Combobox):
+    def __init__(self, master=None, **kwargs):
+        super().__init__(master, **kwargs)
+        self._completion_list = []
+        self.var = self["textvariable"]
+        if not self.var:
+            self.var = self["textvariable"] = tk.StringVar()
+        self.var.trace_add('write', self.update_values)
+    
+    def set_completion_list(self, completion_list):
+        self._completion_list = sorted(completion_list)
+        self['values'] = self._completion_list
+    
+    def update_values(self, *args):
+        typed_text = self.var.get().lower()
+        if typed_text == '':
+            data = self._completion_list
+        else:
+            data = [item for item in self._completion_list if typed_text in item.lower()]
+        self['values'] = data
+
+def main():
+    root = tk.Tk()
+    root.geometry('300x200')
+    
+    combo_box = SearchableComboBox(root)
+    combo_box.set_completion_list(['Apple', 'Banana', 'Grape', 'Orange', 'Pineapple', 'Strawberry'])
+    combo_box.pack(pady=20, padx=20)
+    
+    root.mainloop()
+
+if __name__ == '__main__':
+    main()
+
+
+
+
+
 
 ======================Designer=================
 pyuic5 -o ui/ui_main_window.py ui/main_window.ui
