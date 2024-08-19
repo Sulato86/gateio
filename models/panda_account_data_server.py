@@ -1,7 +1,7 @@
 import pandas as pd
+import requests
 from PyQt5.QtCore import QAbstractTableModel, Qt, QModelIndex, QTimer
 from utils.logging_config import configure_logging
-from api.api_service import ApiHandler
 
 # Konfigurasi logging
 logger = configure_logging('panda_account_data', 'logs/panda_account_data.log')
@@ -9,7 +9,7 @@ logger = configure_logging('panda_account_data', 'logs/panda_account_data.log')
 class PandaAccountData(QAbstractTableModel):
     def __init__(self, update_interval=10000):
         super(PandaAccountData, self).__init__()
-        self.api_handler = ApiHandler()
+        self.api_url = "http://154.26.128.195:5000"  # Alamat IP VPS dan port server Flask
         self.sort_column = None
         self.sort_order = Qt.AscendingOrder
         self.update_data()
@@ -19,19 +19,28 @@ class PandaAccountData(QAbstractTableModel):
 
     def update_data(self):
         try:
-            data = self.api_handler.get_balances_data()
-            logger.info(f"Data akun yang diterima: {data}")
-            if not data or data == [["-", 0, 0]]:
-                logger.warning("Data tidak valid atau kosong, menggunakan data default.")
-                self.df = pd.DataFrame([["-", 0, 0]], columns=["Asset", "Available", "Locked"])
+            # Ambil data dari server Flask
+            response = requests.get(f"{self.api_url}/get_balances")
+            if response.status_code == 200:
+                data = response.json().get('spot', [])
+                logger.info(f"Data akun yang diterima: {data}")  # Logging untuk debug
+                if not data:
+                    logger.warning("Data tidak valid atau kosong, menggunakan data default.")
+                    self.df = pd.DataFrame([["-", 0, 0]], columns=["Asset", "Available", "Locked"])
+                else:
+                    # Buat DataFrame dari data yang diterima
+                    self.df = pd.DataFrame(data, columns=["currency", "available", "locked"])
             else:
-                self.df = pd.DataFrame(data, columns=["Asset", "Available", "Locked"])
+                logger.error(f"Error fetching balances: {response.status_code} - {response.text}")
+                self.df = pd.DataFrame([["-", 0, 0]], columns=["Asset", "Available", "Locked"])
 
+            # Urutkan data jika perlu
             if self.sort_column is not None:
                 self.sort_data(self.sort_column, self.sort_order)
             else:
                 self.layoutChanged.emit()
         except Exception as e:
+            # Tangani kesalahan dan tampilkan pesan error
             logger.error(f"Gagal memperbarui data: {e}")
             self.df = pd.DataFrame([["-", 0, 0]], columns=["Asset", "Available", "Locked"])
             self.layoutChanged.emit()

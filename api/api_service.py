@@ -17,7 +17,6 @@ def get_api_credentials():
         raise ValueError("API_KEY dan API_SECRET harus disetel dalam environment variables")
     return api_key, api_secret
 
-# API Client setup
 api_key, api_secret = get_api_credentials()
 configuration = Configuration(key=api_key, secret=api_secret)
 api_client = ApiClient(configuration=configuration)
