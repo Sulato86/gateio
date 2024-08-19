@@ -138,7 +138,7 @@
      </font>
     </property>
     <property name="currentIndex">
-     <number>2</number>
+     <number>0</number>
     </property>
     <widget class="QWidget" name="tab_saldo">
      <attribute name="title">
@@ -165,36 +165,6 @@
         <weight>50</weight>
         <bold>false</bold>
        </font>
-      </property>
-     </widget>
-    </widget>
-    <widget class="QWidget" name="tab_order">
-     <attribute name="title">
-      <string>Order</string>
-     </attribute>
-     <widget class="QTableView" name="tableView_order">
-      <property name="geometry">
-       <rect>
-        <x>-5</x>
-        <y>1</y>
-        <width>441</width>
-        <height>181</height>
-       </rect>
-      </property>
-     </widget>
-    </widget>
-    <widget class="QWidget" name="tab_history">
-     <attribute name="title">
-      <string>History</string>
-     </attribute>
-     <widget class="QTableView" name="tableView_history">
-      <property name="geometry">
-       <rect>
-        <x>-5</x>
-        <y>1</y>
-        <width>441</width>
-        <height>181</height>
-       </rect>
       </property>
      </widget>
     </widget>
