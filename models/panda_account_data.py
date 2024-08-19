@@ -1,7 +1,10 @@
 import pandas as pd
+import os
+import sys
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from PyQt5.QtCore import QAbstractTableModel, Qt, QModelIndex, QTimer
 from utils.logging_config import configure_logging
-from api.api_service import ApiHandler
+from api.api_get_balances import ApiHandler
 
 # Konfigurasi logging
 logger = configure_logging('panda_account_data', 'logs/panda_account_data.log')

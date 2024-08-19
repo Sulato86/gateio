@@ -1,148 +1,136 @@
-import sys
+import requests
 import os
-import json
+import sys
+import pandas as pd
+import numpy as np
+import talib
 import time
-import asyncio
-import websockets
-from datetime import datetime
-from collections import deque
+from requests.exceptions import RequestException
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from utils.logging_config import configure_logging
 
-logger = configure_logging('rsi_calculator', 'logs/rsi_calculator.log')
+BASE_URL = "http://154.26.128.195:5000"
 
-def calculate_ema(values, period):
-    if not values:
-        raise ValueError("Daftar nilai tidak boleh kosong.")
+logger = configure_logging("rsi_calculator", "logs/rsi_calculator.log")
+
+def get_candlestick_data(subscription_name):
+    url = f"{BASE_URL}/get_candlestick_data"
+    params = {"subscription_name": subscription_name}
     
-    ema_values = []
-    multiplier = 2 / (period + 1)
-    ema_values.append(values[0])
-    for value in values[1:]:
-        ema = (value - ema_values[-1]) * multiplier + ema_values[-1]
-        ema_values.append(ema)
+    try:
+        response = requests.get(url, params=params)
+        response.raise_for_status()
+    except RequestException as e:
+        logger.error(f"HTTP request failed: {e}")
+        return None
+    except Exception as e:
+        logger.error(f"Unexpected error: {e}")
+        return None
     
-    return ema_values[-1]
-
-class RSI:
-    def __init__(self, period=14, smoothing_length=14):
-        self.period = period
-        self.smoothing_length = smoothing_length
-        self.close_prices = deque(maxlen=period + 1)
-        self.previous_avg_gain = None
-        self.previous_avg_loss = None
-
-    def add_close_price(self, close_price):
-        self.close_prices.append(close_price)
-        if len(self.close_prices) == self.close_prices.maxlen:
-            return self.calculate_rsi()
+    if response.status_code == 200:
+        try:
+            data = response.json()
+            df = pd.DataFrame(data)
+            df['timestamp'] = pd.to_datetime(df['timestamp'])
+            df = df.sort_values(by='timestamp').reset_index(drop=True)
+            
+            if df.isnull().values.any():
+                logger.warning("Data contains NaN values. Cleaning data...")
+                df = df.dropna()
+            
+            return df
+        except (ValueError, KeyError) as e:
+            logger.error(f"Data processing error: {e}")
+            return None
+    else:
+        logger.error(f"Failed to retrieve data. Status code: {response.status_code}")
         return None
 
-    def calculate_rsi(self):
-        gains = []
-        losses = []
+def calculate_rsi(prices, length, smoothing_method='EMA', smoothing_length=1):
+    if len(prices) < length:
+        logger.warning(f"Insufficient data to calculate RSI. Data length: {len(prices)}, required: {length}")
+        return np.full(len(prices), np.nan)
+    
+    try:
+        delta = np.diff(prices, prepend=np.nan)
+        gain = np.where(delta > 0, delta, 0)
+        loss = np.where(delta < 0, -delta, 0)
 
-        for i in range(1, len(self.close_prices)):
-            change = self.close_prices[i] - self.close_prices[i - 1]
-            if change > 0:
-                gains.append(change)
-                losses.append(0)
-            else:
-                gains.append(0)
-                losses.append(abs(change))
-
-        if self.previous_avg_gain is None or self.previous_avg_loss is None:
-            average_gain = sum(gains) / self.period
-            average_loss = sum(losses) / self.period
+        if smoothing_method == 'SMA':
+            avg_gain = talib.SMA(gain, timeperiod=length)
+            avg_loss = talib.SMA(loss, timeperiod=length)
+        elif smoothing_method == 'EMA':
+            avg_gain = talib.EMA(gain, timeperiod=length)
+            avg_loss = talib.EMA(loss, timeperiod=length)
+        elif smoothing_method == 'WMA':
+            avg_gain = talib.WMA(gain, timeperiod=length)
+            avg_loss = talib.WMA(loss, timeperiod=length)
         else:
-            average_gain = (self.previous_avg_gain * (self.period - 1) + gains[-1]) / self.period
-            average_loss = (self.previous_avg_loss * (self.period - 1) + losses[-1]) / self.period
+            raise ValueError("Invalid smoothing method. Use 'SMA', 'EMA', or 'WMA'.")
 
-        self.previous_avg_gain = average_gain
-        self.previous_avg_loss = average_loss
+        if smoothing_length > 1:
+            avg_gain = talib.EMA(avg_gain, timeperiod=smoothing_length)
+            avg_loss = talib.EMA(avg_loss, timeperiod=smoothing_length)
 
-        if average_loss == 0:
-            return 100
-
-        rs = average_gain / average_loss
+        rs = avg_gain / avg_loss
         rsi = 100 - (100 / (1 + rs))
+        
+        # Add nan padding to maintain the length consistency
+        rsi = np.concatenate([np.full(length, np.nan), rsi[length:]])
+
+        if len(rsi) < len(prices):
+            rsi = np.concatenate([np.full(len(prices) - len(rsi), np.nan), rsi])
+
         return rsi
 
-class GateIOWebSocketWithRSI:
-    def __init__(self, message_callback=None, pairs=None, rsi_period=14, interval='1m'):
-        if pairs is None:
-            pairs = ["BTC_USDT"]
-        self.message_callback = message_callback
-        self.pairs = pairs
-        self.rsi_calculators = {pair: RSI(period=rsi_period, smoothing_length=rsi_period) for pair in self.pairs}
-        self.interval = interval
-        self.websocket = None
-        self.last_update_time = None
+    except Exception as e:
+        logger.error(f"Error calculating RSI: {e}")
+        return np.full(len(prices), np.nan)
 
-    async def on_message(self, message: str):
-        try:
-            data = json.loads(message)
-            
-            if 'result' in data and 'n' in data['result']:
-                result = data['result']
-                if 'c' in result:
-                    n_value = result['n']
-                    pair = "_".join(n_value.split('_')[1:])
-                    close_price = float(result['c'])
+def calculate_indicators(candlestick_data, length=14, smoothing_method='SMA', smoothing_length=14):
+    close_prices = candlestick_data['close'].astype(np.float64).values
+    
+    if len(candlestick_data) < length:
+        logger.warning("Data tidak mencukupi untuk menghitung indikator.")
+        return
+    
+    try:
+        candlestick_data['SMA'] = talib.SMA(close_prices, timeperiod=length)
+        candlestick_data['EMA'] = talib.EMA(close_prices, timeperiod=length)
+        candlestick_data['WMA'] = talib.WMA(close_prices, timeperiod=length)
+        candlestick_data['RSI'] = calculate_rsi(close_prices, length, smoothing_method=smoothing_method, smoothing_length=smoothing_length)
+        
+        latest_data = candlestick_data.iloc[-1]
 
-                    current_time = datetime.now()
-                    if self.last_update_time is None or (current_time - self.last_update_time).seconds >= 60:
-                        self.last_update_time = current_time
-                        if pair in self.rsi_calculators:
-                            rsi_value = self.rsi_calculators[pair].add_close_price(close_price)
-                            if rsi_value is not None:
-                                print(f"RSI for {pair}: {rsi_value}")
-                        else:
-                            pass
-                    else:
-                        pass
-                else:
-                    pass
-            else:
-                pass
-
-            if callable(self.message_callback):
-                if asyncio.iscoroutinefunction(self.message_callback):
-                    await self.message_callback(data)
-                else:
-                    self.message_callback(data)
-        except Exception as e:
-            pass
-
-    async def subscribe(self, pairs):
-        message = {
-            "time": int(time.time()),
-            "channel": "spot.candlesticks",
-            "event": "subscribe",
-            "payload": [self.interval, pairs[0]]
-        }
-        await self.websocket.send(json.dumps(message))
-
-    async def run(self):
-        uri = "wss://api.gateio.ws/ws/v4/"
-        try:
-            async with websockets.connect(uri) as websocket:
-                self.websocket = websocket
-                await self.subscribe(self.pairs)
-                async for message in websocket:
-                    await self.on_message(message)
-        except Exception as e:
-            print(f"WebSocket connection failed: {e}")
+        if not pd.isna(latest_data['SMA']):
+            logger.info(f"SMA: {latest_data['SMA']}")
+            logger.info(f"EMA: {latest_data['EMA']}")
+            logger.info(f"WMA: {latest_data['WMA']}")
+            logger.info(f"RSI ({smoothing_method}): {latest_data['RSI']}")
+        else:
+            logger.warning("Indikator belum tersedia untuk data terbaru.")
+    except Exception as e:
+        logger.error(f"Error calculating indicators: {e}")
 
 if __name__ == "__main__":
-    try:
-        websocket_with_rsi = GateIOWebSocketWithRSI(
-            message_callback=None,
-            interval='1m'
-        )
-        asyncio.run(websocket_with_rsi.run())
-    except Exception as e:
-        print(f"An error occurred: {e}")
-        input("Press Enter to exit...")
+    subscription_name = "1m_BTC_USDT"
+    
+    # Parameter dinamis
+    length = 14
+    smoothing_method = 'EMA'
+    smoothing_length = 14
+
+    while True:
+        try:
+            candlestick_data = get_candlestick_data(subscription_name)
+            
+            if candlestick_data is not None and not candlestick_data.empty:
+                calculate_indicators(candlestick_data, length, smoothing_method, smoothing_length)
+            else:
+                logger.error(f"Tidak ada data yang ditemukan untuk subscription_name: {subscription_name}")
+            
+            time.sleep(60)
+        except Exception as e:
+            logger.error(f"Unexpected error in main loop: {e}")
+            time.sleep(60)

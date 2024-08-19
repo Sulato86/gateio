@@ -5,6 +5,8 @@ import pandas as pd
 import numpy as np
 import talib
 import time
+from requests.exceptions import RequestException
+
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from utils.logging_config import configure_logging
 
@@ -17,7 +19,13 @@ logger = configure_logging("sma_ema_ema", "logs/sma_ema_wma.log")
 def get_candlestick_data(subscription_name):
     url = f"{BASE_URL}/get_candlestick_data"
     params = {"subscription_name": subscription_name}
-    response = requests.get(url, params=params)
+    
+    try:
+        response = requests.get(url, params=params)
+        response.raise_for_status()  # Menghasilkan exception jika status code tidak 200
+    except RequestException as e:
+        logger.error(f"HTTP request failed: {e}")
+        return None
     
     if response.status_code == 200:
         data = response.json()
@@ -47,6 +55,11 @@ def calculate_indicators(candlestick_data):
     sma_window = 14
     ema_window = 14
     wma_window = 14
+    
+    # Pastikan data cukup untuk menghitung indikator
+    if len(candlestick_data) < sma_window:
+        logger.warning("Data tidak mencukupi untuk menghitung indikator.")
+        return
     
     # Menghitung menggunakan TA-Lib
     candlestick_data['SMA'] = talib.SMA(close_prices, timeperiod=sma_window)
