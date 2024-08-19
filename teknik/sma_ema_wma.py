@@ -1,11 +1,18 @@
 import requests
+import os
+import sys
 import pandas as pd
 import numpy as np
 import talib
 import time
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+from utils.logging_config import configure_logging
 
 # Ganti dengan IP VPS Anda
 BASE_URL = "http://154.26.128.195:5000"
+
+# Konfigurasi logging
+logger = configure_logging("sma_ema_ema", "logs/sma_ema_wma.log")
 
 def get_candlestick_data(subscription_name):
     url = f"{BASE_URL}/get_candlestick_data"
@@ -22,16 +29,21 @@ def get_candlestick_data(subscription_name):
         # Urutkan berdasarkan timestamp
         df = df.sort_values(by='timestamp').reset_index(drop=True)
         
+        # Cek jika ada missing values
+        if df.isnull().values.any():
+            logger.warning("Data contains NaN values. Cleaning data...")
+            df = df.dropna()
+        
         return df
     else:
-        print(f"Failed to retrieve data. Status code: {response.status_code}")
+        logger.error(f"Failed to retrieve data. Status code: {response.status_code}")
         return None
 
 def calculate_indicators(candlestick_data):
     # Mengubah kolom close menjadi array numpy dengan tipe float64
     close_prices = candlestick_data['close'].astype(np.float64).values
     
-    # Hitung SMA, EMA, dan WMA dengan jendela 9 periode (bisa disesuaikan)
+    # Hitung SMA, EMA, dan WMA dengan jendela 14 periode (bisa disesuaikan)
     sma_window = 14
     ema_window = 14
     wma_window = 14
@@ -43,15 +55,14 @@ def calculate_indicators(candlestick_data):
     
     # Tampilkan nilai SMA, EMA, dan WMA terakhir, pastikan nilai indikator tidak NaN
     if not pd.isna(candlestick_data['SMA'].iloc[-1]):
-        print("\nNilai Terbaru:")
-        print(f"SMA: {candlestick_data['SMA'].iloc[-1]}")
-        print(f"EMA: {candlestick_data['EMA'].iloc[-1]}")
-        print(f"WMA: {candlestick_data['WMA'].iloc[-1]}")
+        logger.info(f"SMA: {candlestick_data['SMA'].iloc[-1]}")
+        logger.info(f"EMA: {candlestick_data['EMA'].iloc[-1]}")
+        logger.info(f"WMA: {candlestick_data['WMA'].iloc[-1]}")
     else:
-        print("Indikator belum tersedia untuk data terbaru.")
+        logger.warning("Indikator belum tersedia untuk data terbaru.")
 
 if __name__ == "__main__":
-    subscription_name = "1h_BTC_USDT"
+    subscription_name = "1m_BTC_USDT"
     
     while True:
         # Ambil data candlestick dari server Flask
@@ -61,7 +72,7 @@ if __name__ == "__main__":
             # Hitung indikator teknikal
             calculate_indicators(candlestick_data)
         else:
-            print("Tidak ada data yang ditemukan untuk subscription_name:", subscription_name)
+            logger.error(f"Tidak ada data yang ditemukan untuk subscription_name: {subscription_name}")
         
         # Tunggu 60 detik sebelum menghitung ulang
         time.sleep(60)
