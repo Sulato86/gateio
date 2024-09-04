@@ -17,7 +17,6 @@ logger = configure_logging("rsi_calculator", "logs/rsi_calculator.log")
 def get_candlestick_data(subscription_name):
     url = f"{BASE_URL}/get_candlestick_data"
     params = {"subscription_name": subscription_name}
-    
     try:
         response = requests.get(url, params=params)
         response.raise_for_status()
@@ -27,18 +26,15 @@ def get_candlestick_data(subscription_name):
     except Exception as e:
         logger.error(f"Unexpected error: {e}")
         return None
-    
     if response.status_code == 200:
         try:
             data = response.json()
             df = pd.DataFrame(data)
             df['timestamp'] = pd.to_datetime(df['timestamp'])
             df = df.sort_values(by='timestamp').reset_index(drop=True)
-            
             if df.isnull().values.any():
                 logger.warning("Data contains NaN values. Cleaning data...")
                 df = df.dropna()
-            
             return df
         except (ValueError, KeyError) as e:
             logger.error(f"Data processing error: {e}")
@@ -51,12 +47,10 @@ def calculate_rsi(prices, length, smoothing_method='EMA', smoothing_length=1):
     if len(prices) < length:
         logger.warning(f"Insufficient data to calculate RSI. Data length: {len(prices)}, required: {length}")
         return np.full(len(prices), np.nan)
-    
     try:
         delta = np.diff(prices, prepend=np.nan)
         gain = np.where(delta > 0, delta, 0)
         loss = np.where(delta < 0, -delta, 0)
-
         if smoothing_method == 'SMA':
             avg_gain = talib.SMA(gain, timeperiod=length)
             avg_loss = talib.SMA(loss, timeperiod=length)
@@ -68,41 +62,30 @@ def calculate_rsi(prices, length, smoothing_method='EMA', smoothing_length=1):
             avg_loss = talib.WMA(loss, timeperiod=length)
         else:
             raise ValueError("Invalid smoothing method. Use 'SMA', 'EMA', or 'WMA'.")
-
         if smoothing_length > 1:
             avg_gain = talib.EMA(avg_gain, timeperiod=smoothing_length)
             avg_loss = talib.EMA(avg_loss, timeperiod=smoothing_length)
-
         rs = avg_gain / avg_loss
         rsi = 100 - (100 / (1 + rs))
-        
-        # Add nan padding to maintain the length consistency
         rsi = np.concatenate([np.full(length, np.nan), rsi[length:]])
-
         if len(rsi) < len(prices):
             rsi = np.concatenate([np.full(len(prices) - len(rsi), np.nan), rsi])
-
         return rsi
-
     except Exception as e:
         logger.error(f"Error calculating RSI: {e}")
         return np.full(len(prices), np.nan)
 
 def calculate_indicators(candlestick_data, length=14, smoothing_method='SMA', smoothing_length=14):
     close_prices = candlestick_data['close'].astype(np.float64).values
-    
     if len(candlestick_data) < length:
         logger.warning("Data tidak mencukupi untuk menghitung indikator.")
         return
-    
     try:
         candlestick_data['SMA'] = talib.SMA(close_prices, timeperiod=length)
         candlestick_data['EMA'] = talib.EMA(close_prices, timeperiod=length)
         candlestick_data['WMA'] = talib.WMA(close_prices, timeperiod=length)
         candlestick_data['RSI'] = calculate_rsi(close_prices, length, smoothing_method=smoothing_method, smoothing_length=smoothing_length)
-        
         latest_data = candlestick_data.iloc[-1]
-
         if not pd.isna(latest_data['SMA']):
             logger.info(f"SMA: {latest_data['SMA']}")
             logger.info(f"EMA: {latest_data['EMA']}")
@@ -115,8 +98,6 @@ def calculate_indicators(candlestick_data, length=14, smoothing_method='SMA', sm
 
 if __name__ == "__main__":
     subscription_name = "1m_BTC_USDT"
-    
-    # Parameter dinamis
     length = 14
     smoothing_method = 'EMA'
     smoothing_length = 14
